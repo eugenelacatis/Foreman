@@ -1,8 +1,8 @@
 import json
+import logging
 import os
+
 import anthropic
-from openinference.instrumentation.anthropic import AnthropicInstrumentor
-from phoenix.otel import register
 
 from dotenv import load_dotenv
 

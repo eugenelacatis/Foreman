@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, HTTPException
 
 from backend.agents.invoicing_agent import run_invoicing as _run_invoicing
 from backend.models.work_order import Approvals, Invoice, WorkOrder, WorkOrderStatus
+from backend.orchestration.pipeline import advance_pipeline
 from backend.state.invoice_history import search_invoice_history
 from backend.state.redis_client import get_work_order, save_work_order
 
@@ -53,7 +54,8 @@ async def approve_work_order(
         raise HTTPException(status_code=400, detail=f"Unknown stage: {stage}")
 
     await save_work_order(wo)
-    return wo
+    advanced = await advance_pipeline(id)
+    return advanced if advanced is not None else wo
 
 
 @router.get("/work-orders/{id}/invoice-history")
@@ -74,14 +76,26 @@ async def invoice_chat(
     if wo is None:
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    result = await _run_invoicing(wo.model_dump(), user_message=message)
+    prior_invoice = wo.invoice.model_dump() if wo.invoice else None
+    result = await _run_invoicing(
+        wo.model_dump(), user_message=message, prior_invoice=prior_invoice
+    )
 
     invoice_data = result.get("invoice", {})
+    # Carry invoice_id forward from prior state; generate one if this is the first completion
+    invoice_id = (
+        invoice_data.get("invoice_id")
+        or (prior_invoice or {}).get("invoice_id")
+        or f"INV-{uuid.uuid4().hex[:8].upper()}"
+    )
     wo.invoice = Invoice(
+        invoice_id=invoice_id,
         line_items=invoice_data.get("line_items", []),
         rates=invoice_data.get("rates", {}),
         template_filled=invoice_data.get("template_filled"),
         vendor_email_draft=invoice_data.get("vendor_email_draft"),
+        missing_fields=result.get("missing_fields", []),
+        conversation_history=result.get("conversation_history", []),
     )
     await save_work_order(wo)
 

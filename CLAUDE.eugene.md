@@ -52,11 +52,11 @@ A seeded work order flows in, the agent prefills and runs a real gap-fill conver
 - [x] ArmorIQ stub — `sign_plan` / `check_action`, `DEMO_BLOCK` trigger (`backend/agents/armoriq_client.py`)
 - [x] Branded invoice template + `render_template` (`backend/agents/invoice_template.py`)
 - [x] Seeded invoice history (`backend/seeds/invoice_history.py`)
-- [ ] Test gap-fill loop end-to-end with a seeded work order — confirm it asks the right questions
-- [ ] Test consistency check — seed a high-rate invoice and confirm the flag fires
-- [ ] Test ArmorIQ block — call with `action="DEMO_BLOCK"` and confirm the overlay-triggering response
-- [ ] Wire `POST /work-orders/{id}/invoice-chat` into the full pipeline flow and confirm state persists in Redis
-- [ ] Emit Arize traces for each Claude call — verify spans appear in Phoenix UI
+- [x] Test gap-fill loop end-to-end with a seeded work order — confirm it asks the right questions
+- [x] Test consistency check — seed a high-rate invoice and confirm the flag fires
+- [x] Test ArmorIQ block — call with `action="DEMO_BLOCK"` and confirm the overlay-triggering response
+- [x] Wire `POST /work-orders/{id}/invoice-chat` into the full pipeline flow and confirm state persists in Redis
+- [x] Emit Arize traces for each Claude call — verify spans appear in Phoenix UI
 
 ### Integration (stage two)
 - [ ] Swap pipeline stubs for real agent calls and run full end-to-end: intake → scheduling → invoicing
