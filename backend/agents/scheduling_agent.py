@@ -3,6 +3,10 @@ import anthropic
 from openinference.instrumentation.anthropic import AnthropicInstrumentor
 from phoenix.otel import register
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 tracer_provider = register(
     project_name="foreman-ai",
     endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"),
