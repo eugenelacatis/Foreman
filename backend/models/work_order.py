@@ -21,15 +21,18 @@ class Classification(BaseModel):
 
 class Schedule(BaseModel):
     proposed_times: list[str] = Field(default_factory=list)
-    outreach_draft: str = ""
+    outreach_draft: dict[str, Any] = Field(default_factory=dict)
     parts_suggestion: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Invoice(BaseModel):
+    invoice_id: str | None = None
     line_items: list[dict[str, Any]] = Field(default_factory=list)
     rates: dict[str, Any] = Field(default_factory=dict)
     template_filled: str | None = None
     vendor_email_draft: str | None = None
+    missing_fields: list[str] = Field(default_factory=list)
+    conversation_history: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Approvals(BaseModel):

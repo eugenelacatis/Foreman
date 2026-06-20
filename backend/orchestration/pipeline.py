@@ -3,8 +3,8 @@ from __future__ import annotations
 from fastapi import HTTPException
 
 from backend.agents.intake_agent import run_intake as _intake
-from backend.agents.scheduling_agent import run_scheduling as _scheduling
 from backend.agents.invoicing_agent import run_invoicing as _invoicing
+from backend.agents.scheduling_agent import run_scheduling as _scheduling
 from backend.models.work_order import (
     Classification,
     Invoice,
@@ -15,52 +15,34 @@ from backend.models.work_order import (
 from backend.state.redis_client import get_work_order, save_work_order
 
 
+def _current_trace_id() -> str | None:
+    try:
+        from opentelemetry import trace
+
+        span = trace.get_current_span()
+        ctx = span.get_span_context()
+        if ctx and ctx.trace_id:
+            return format(ctx.trace_id, "032x")
+    except Exception:
+        pass
+    return None
+
+
 async def run_intake(wo: WorkOrder) -> WorkOrder:
     result = await _intake(wo.model_dump())
     wo.classification = Classification(**result)
+    wo.trace_id = _current_trace_id()
     return wo
 
 
 async def run_scheduling(wo: WorkOrder) -> WorkOrder:
-    if wo.classification is None:
-        wo.classification = Classification(
-            job_type="HVAC repair",
-            entities={
-                "issue": "compressor grinding noise",
-                "location": "142 Elm Street",
-                "client": "Riverside Property Management",
-                "urgency": "high",
-            },
-            completeness_flags=["FALLBACK_CLASSIFICATION"],
-        )
-
     result = await _scheduling(wo.model_dump())
-
-    outreach = result.get("outreach_draft", "")
-    if isinstance(outreach, dict):
-        outreach = outreach.get("message", str(outreach))
-
-    wo.schedule = Schedule(
-        proposed_times=result.get("proposed_times", []),
-        outreach_draft=outreach,
-        parts_suggestion=result.get("parts_suggestion", []),
-    )
+    wo.schedule = Schedule(**result)
+    wo.trace_id = _current_trace_id()
     return wo
 
 
 async def run_invoicing(wo: WorkOrder, user_message: str | None = None) -> WorkOrder:
-    if wo.classification is None:
-        wo.classification = Classification(
-            job_type="HVAC repair",
-            entities={
-                "issue": "compressor grinding noise",
-                "location": "142 Elm Street",
-                "client": "Riverside Property Management",
-                "urgency": "high",
-            },
-            completeness_flags=["FALLBACK_CLASSIFICATION"],
-        )
-
     result = await _invoicing(wo.model_dump(), user_message=user_message)
     invoice_data = result.get("invoice", {})
     wo.invoice = Invoice(
@@ -69,37 +51,35 @@ async def run_invoicing(wo: WorkOrder, user_message: str | None = None) -> WorkO
         template_filled=invoice_data.get("template_filled"),
         vendor_email_draft=invoice_data.get("vendor_email_draft"),
     )
+    wo.trace_id = _current_trace_id()
     return wo
 
 
-async def advance_pipeline(work_order_id: str, stage: str) -> WorkOrder | None:
+async def advance_pipeline(work_order_id: str) -> WorkOrder | None:
     wo = await get_work_order(work_order_id)
     if wo is None:
         return None
 
-    if stage == "intake":
-        wo = await run_intake(wo)
-        wo.status = WorkOrderStatus.intake
-        await save_work_order(wo)
-
-    elif stage == "scheduling":
+    if wo.classification is None:
         if not wo.approvals.intake_approved:
-            raise HTTPException(
-                status_code=422,
-                detail="Intake must be approved before advancing to scheduling.",
-            )
-        wo.status = WorkOrderStatus.scheduling
+            raise HTTPException(422, "Intake must be approved before advancing to scheduling.")
+        wo = await run_intake(wo)
+        await save_work_order(wo)
+        return wo
+
+    if wo.schedule is None:
+        if not wo.approvals.scheduling_approved:
+            raise HTTPException(422, "Scheduling must be approved before advancing to invoicing.")
         wo = await run_scheduling(wo)
         await save_work_order(wo)
+        return wo
 
-    elif stage == "invoicing":
-        if not wo.approvals.scheduling_approved:
-            raise HTTPException(
-                status_code=422,
-                detail="Scheduling must be approved before advancing to invoicing.",
-            )
-        wo.status = WorkOrderStatus.invoicing
+    if not wo.approvals.invoice_approved:
+        return wo
+
+    if wo.invoice is None:
         wo = await run_invoicing(wo)
+        wo.status = WorkOrderStatus.complete
         await save_work_order(wo)
 
     return wo
