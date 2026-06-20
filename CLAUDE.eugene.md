@@ -38,3 +38,27 @@ You write only the `invoice` section of the work-order object. You read `raw_req
 
 ## Done looks like
 A seeded work order flows in, the agent prefills and runs a real gap-fill conversation, checks consistency, presents a branded draft, waits for human approval, and produces a vendor email draft. ArmorIQ blocks a deliberately off-plan action. Every step traces in Arize.
+
+## Task list
+
+### Spine (do first, blocks everyone)
+- [x] Lock work-order schema with Bhoomika (`backend/models/work_order.py`)
+- [x] Stand up FastAPI app with CORS and `/health` (`backend/main.py`)
+- [x] Define all API routes and OpenAPI contract (`backend/api/routes.py`)
+- [x] Wire pipeline orchestration with gate logic (`backend/orchestration/pipeline.py`)
+
+### Invoicing agent
+- [x] Boilerplate: tool definitions, system prompt, agentic loop (`backend/agents/invoicing_agent.py`)
+- [x] ArmorIQ stub — `sign_plan` / `check_action`, `DEMO_BLOCK` trigger (`backend/agents/armoriq_client.py`)
+- [x] Branded invoice template + `render_template` (`backend/agents/invoice_template.py`)
+- [x] Seeded invoice history (`backend/seeds/invoice_history.py`)
+- [ ] Test gap-fill loop end-to-end with a seeded work order — confirm it asks the right questions
+- [ ] Test consistency check — seed a high-rate invoice and confirm the flag fires
+- [ ] Test ArmorIQ block — call with `action="DEMO_BLOCK"` and confirm the overlay-triggering response
+- [ ] Wire `POST /work-orders/{id}/invoice-chat` into the full pipeline flow and confirm state persists in Redis
+- [ ] Emit Arize traces for each Claude call — verify spans appear in Phoenix UI
+
+### Integration (stage two)
+- [ ] Swap pipeline stubs for real agent calls and run full end-to-end: intake → scheduling → invoicing
+- [ ] Confirm work-order object in Redis is correct after each stage
+- [ ] Run demo script: seeded request in, approved invoice + vendor email out

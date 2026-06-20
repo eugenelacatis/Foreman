@@ -42,3 +42,28 @@ The demo walks all three stages. Intake and scheduling are lean in logic but mus
 
 ## Done looks like
 A seeded request flows through intake (classified, completeness flagged) into scheduling (times proposed, outreach drafted, parts suggested and labeled), and the enriched work-order object is ready for invoicing to pick up. All three render cleanly in the UI.
+
+## Task list
+
+### Intake agent
+- [x] Boilerplate: `classify_job` tool, system prompt, single-turn call (`backend/agents/intake_agent.py`)
+- [x] Arize Phoenix instrumentation at module level
+- [x] Fallback to stub classification on any exception
+- [ ] Test with a seeded `raw_request` — confirm `job_type`, `entities`, and `completeness_flags` populate correctly
+- [ ] Test fallback path — confirm `FALLBACK` flag appears when Anthropic call fails
+- [ ] Verify Arize span appears in Phoenix UI for each intake call
+
+### Scheduling agent
+- [x] Boilerplate: 3 tools (`propose_times`, `draft_outreach`, `suggest_parts`), agentic loop (`backend/agents/scheduling_agent.py`)
+- [x] Seeded prices dict + `_apply_seeded_prices` post-processing
+- [x] System prompt enforces `ESTIMATED PRICE -` label on every part reason
+- [x] Fallback to stub schedule on any exception
+- [ ] Test with a seeded classification — confirm all three tools are called in one loop
+- [ ] Confirm seeded prices override Claude's guesses for known part names
+- [ ] Confirm parts suggestion reason always starts with `ESTIMATED PRICE -`
+- [ ] Verify Arize span appears in Phoenix UI
+
+### Integration (stage two — you finish first, then join Bhoomika)
+- [ ] Confirm `run_intake` + `run_scheduling` wired correctly in `backend/orchestration/pipeline.py`
+- [ ] Run intake → scheduling end-to-end: seeded request in, enriched work-order object out in Redis
+- [ ] Coordinate with Michelle so intake and scheduling screens render the real agent output cleanly

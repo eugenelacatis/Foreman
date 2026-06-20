@@ -41,3 +41,34 @@ If you and Person A both turn out stronger at model and prompt work than at infr
 
 ## Done looks like
 The work-order object lives in Redis, agents read and write it through clean interfaces, the pipeline advances through real approval gates, ArmorIQ blocks an off-plan action on cue, and (if time) the approval step runs as an Orkes workflow.
+
+## Task list
+
+### Schema + state layer (do first, blocks everyone)
+- [x] Lock work-order schema with Eugene (`backend/models/work_order.py`)
+- [x] Async Redis client: `get_work_order`, `save_work_order`, `init_redis`, `close_redis` (`backend/state/redis_client.py`)
+- [x] Seeded invoice history + keyword search (`backend/state/invoice_history.py`)
+- [ ] Stand up Redis locally and confirm `init_redis` ping succeeds on startup
+- [ ] Confirm `get_work_order` / `save_work_order` round-trip a `WorkOrder` correctly (serialize → store → deserialize)
+- [ ] Replace keyword search in `search_invoice_history` with Redis vector search (RediSearch / VSS) — expose the same interface, swap the implementation
+
+### Orchestration spine
+- [x] `advance_pipeline` gate logic wired to agent stubs (`backend/orchestration/pipeline.py`)
+- [ ] Confirm gate logic is a real stop: pipeline must not advance past intake without `intake_approved = True`
+- [ ] Hook `advance_pipeline` into the approve endpoint so approving a stage automatically triggers the next agent
+- [ ] Test full gate sequence: create → approve intake → approve scheduling → approve invoice → status = complete
+
+### ArmorIQ integration
+- [x] `sign_plan` / `check_action` stubs with TODO HTTP calls (`backend/agents/armoriq_client.py`)
+- [ ] Wire real ArmorIQ HTTP calls when API key is available (replace the TODO stubs)
+- [ ] Confirm `DEMO_BLOCK` path fires correctly and the frontend overlay triggers
+
+### Optional: Orkes Conductor (only if core is solid by hour 4)
+- [ ] Wrap the human-approval gate as a Conductor workflow
+- [ ] Confirm the Orkes workflow pauses for human input and resumes on approval
+- [ ] Hour-4 checkpoint: if Orkes is fighting you, cut it
+
+### Integration lead (stage two)
+- [ ] Wire Harshita's agents into pipeline once she signals ready
+- [ ] Wire Eugene's invoicing agent into pipeline once he signals ready
+- [ ] Run full end-to-end: seeded request → intake → scheduling → invoicing → approved invoice in Redis
