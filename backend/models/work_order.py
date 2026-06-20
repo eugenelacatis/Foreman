@@ -21,7 +21,7 @@ class Classification(BaseModel):
 
 class Schedule(BaseModel):
     proposed_times: list[str] = Field(default_factory=list)
-    outreach_draft: str = ""
+    outreach_draft: dict[str, Any] = Field(default_factory=dict)
     parts_suggestion: list[dict[str, Any]] = Field(default_factory=list)
 
 
