@@ -12,12 +12,13 @@ _redis: aioredis.Redis | None = None
 
 
 def _get_url() -> str:
-    return os.environ.get("REDIS_URL", "redis://localhost:6379")
+    return os.environ.get("REDIS_URL" , "redis://127.0.0.1:6379/0")
 
 
-async def init_redis() -> None:
+async def init_redis() -> bool:
     global _redis
     _redis = aioredis.from_url(_get_url(), decode_responses=True)
+    return await _redis.ping()
 
 
 async def close_redis() -> None:
@@ -46,3 +47,14 @@ async def save_work_order(wo: WorkOrder) -> None:
 
 async def get_redis() -> AsyncGenerator[aioredis.Redis, None]:
     yield _client()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def _main() -> None:
+        result = await init_redis()
+        print(f"Redis ping: {result}")
+        await close_redis()
+
+    asyncio.run(_main())

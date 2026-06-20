@@ -4,8 +4,10 @@ import uuid
 
 from fastapi import APIRouter, Body, HTTPException
 
+from backend.agents.armoriq_client import check_action
 from backend.agents.invoicing_agent import run_invoicing as _run_invoicing
 from backend.models.work_order import Approvals, Invoice, WorkOrder, WorkOrderStatus
+from backend.orchestration.pipeline import advance_pipeline
 from backend.state.invoice_history import search_invoice_history
 from backend.state.redis_client import get_work_order, save_work_order
 
@@ -43,17 +45,44 @@ async def approve_work_order(
     if stage == "intake":
         wo.approvals.intake_approved = True
         wo.status = WorkOrderStatus.scheduling
+        await save_work_order(wo)
+        return await advance_pipeline(wo.id, "scheduling") or wo
     elif stage == "scheduling":
+        if not wo.approvals.intake_approved:
+            raise HTTPException(
+                status_code=422,
+                detail="Intake must be approved before approving scheduling.",
+            )
+
         wo.approvals.scheduling_approved = True
         wo.status = WorkOrderStatus.invoicing
+        await save_work_order(wo)
+        return await advance_pipeline(wo.id, "invoicing") or wo
     elif stage == "invoice":
+        if not wo.approvals.scheduling_approved:
+            raise HTTPException(
+                status_code=422,
+                detail="Scheduling must be approved before approving invoice.",
+            )
+
         wo.approvals.invoice_approved = True
         wo.status = WorkOrderStatus.complete
+        await save_work_order(wo)
+        return wo
     else:
-        raise HTTPException(status_code=400, detail=f"Unknown stage: {stage}")
+        raise HTTPException(status_code=400, detail="Invalid approval stage")
 
-    await save_work_order(wo)
-    return wo
+@router.post("/work-orders/{id}/demo-block")
+async def demo_block(id: str) -> dict:
+    wo = await get_work_order(id)
+    if wo is None:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    result = await check_action("DEMO_BLOCK", "demo-plan-001")
+    return {
+        "allowed": False,
+        "reason": result["reason"],
+        "action": "commit_invoice_without_approval",
+    }
 
 
 @router.get("/work-orders/{id}/invoice-history")

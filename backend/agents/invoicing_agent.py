@@ -5,8 +5,6 @@ import uuid
 from datetime import date
 
 import anthropic
-from openinference.instrumentation.anthropic import AnthropicInstrumentor
-from phoenix.otel import register
 
 from .armoriq_client import ArmorIQBlockedError, check_action, sign_plan
 from .invoice_template import render_template
@@ -14,11 +12,16 @@ from ..seeds.invoice_history import INVOICE_HISTORY
 
 logger = logging.getLogger(__name__)
 
-tracer_provider = register(
-    project_name="foreman-ai",
-    endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"),
-)
-AnthropicInstrumentor().instrument(tracer_provider=tracer_provider)
+try:
+    from openinference.instrumentation.anthropic import AnthropicInstrumentor
+    from phoenix.otel import register
+    tracer_provider = register(
+        project_name="foreman-ai",
+        endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"),
+    )
+    AnthropicInstrumentor().instrument(tracer_provider=tracer_provider)
+except Exception as _exc:
+    logger.warning("Phoenix/Arize unavailable — tracing disabled: %s", _exc)
 
 client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -226,9 +229,11 @@ async def _dispatch_tool(
 ) -> str:
     if tool_name in _ARMORIQ_GUARDED:
         plan_id = await sign_plan(action=tool_name, plan=tool_input)
-        allowed = await check_action(action=tool_name, plan_id=plan_id)
-        if not allowed:
-            raise ArmorIQBlockedError(f"ArmorIQ blocked action: {tool_name}")
+        result = await check_action(action=tool_name, plan_id=plan_id)
+        if not result["allowed"]:
+            raise ArmorIQBlockedError(
+                f"ArmorIQ blocked action: {tool_name} — {result['reason']}"
+            )
 
     if tool_name == "prefill_invoice":
         result = _tool_prefill_invoice(
