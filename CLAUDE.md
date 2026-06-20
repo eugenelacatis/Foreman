@@ -61,6 +61,7 @@ Optional bolt-ons, only if the core is solid. One person, time permitting, no on
 - Orkes Conductor: wrap the approval step as a Conductor workflow for the bounty.
 - Browserbase: live local pricing behind the parts suggestion, falls back to seeded prices.
 - Fetch.ai: register one agent as a uAgent on Agentverse for the bounty. Do NOT rearchitect around the agent-marketplace model. It is a logo, not a foundation.
+- Sentry: error and crash monitoring on top of Arize Phoenix (which handles LLM tracing). ~15 min to wire up. Add the Python SDK to FastAPI and the JS SDK to the Vite frontend. Tag every captured event with `work_order_id` and `status` so any error links back to the exact order and pipeline stage. Do not touch the agent reasoning or approval flow to add this — it wraps the outside, not the inside.
 
 ## Working rules for four parallel Claude Code sessions
 
