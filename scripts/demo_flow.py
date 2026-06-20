@@ -37,7 +37,7 @@ def check(resp: httpx.Response, expected: int = 200) -> dict:
 
 
 def main() -> None:
-    with httpx.Client(base_url=BASE, timeout=30) as client:
+    with httpx.Client(base_url=BASE, timeout=60.0) as client:
 
         # 1. Create work order
         step("POST /work-orders — create with seeded request")
