@@ -49,21 +49,21 @@ A seeded request flows through intake (classified, completeness flagged) into sc
 - [x] Boilerplate: `classify_job` tool, system prompt, single-turn call (`backend/agents/intake_agent.py`)
 - [x] Arize Phoenix instrumentation at module level
 - [x] Fallback to stub classification on any exception
-- [ ] Test with a seeded `raw_request` — confirm `job_type`, `entities`, and `completeness_flags` populate correctly
-- [ ] Test fallback path — confirm `FALLBACK` flag appears when Anthropic call fails
-- [ ] Verify Arize span appears in Phoenix UI for each intake call
+- [x] Test with a seeded `raw_request` — confirmed via demo_flow.py (HVAC job type, location/urgency/contact extracted, completeness flags correct)
+- [x] Test fallback path — covered by `test_intake_agent.py::test_fallback_on_exception`
+- [ ] Verify Arize span appears in Phoenix UI for each intake call — code wired, visual confirmation pending
 
 ### Scheduling agent
 - [x] Boilerplate: 3 tools (`propose_times`, `draft_outreach`, `suggest_parts`), agentic loop (`backend/agents/scheduling_agent.py`)
 - [x] Seeded prices dict + `_apply_seeded_prices` post-processing
 - [x] System prompt enforces `ESTIMATED PRICE -` label on every part reason
 - [x] Fallback to stub schedule on any exception
-- [ ] Test with a seeded classification — confirm all three tools are called in one loop
-- [ ] Confirm seeded prices override Claude's guesses for known part names
-- [ ] Confirm parts suggestion reason always starts with `ESTIMATED PRICE -`
-- [ ] Verify Arize span appears in Phoenix UI
+- [x] Test with a seeded classification — covered by `test_scheduling_agent.py::test_three_tools_in_one_loop`
+- [x] Confirm seeded prices override Claude's guesses — covered by `test_scheduling_agent.py::test_seeded_prices_override_guess`
+- [x] Confirm parts suggestion reason always starts with `ESTIMATED PRICE -` — covered by `test_scheduling_agent.py::test_estimated_price_label_default`
+- [ ] Verify Arize span appears in Phoenix UI — code wired, visual confirmation pending
 
 ### Integration (stage two — you finish first, then join Bhoomika)
-- [ ] Confirm `run_intake` + `run_scheduling` wired correctly in `backend/orchestration/pipeline.py`
-- [ ] Run intake → scheduling end-to-end: seeded request in, enriched work-order object out in Redis
-- [ ] Coordinate with Michelle so intake and scheduling screens render the real agent output cleanly
+- [x] Confirm `run_intake` + `run_scheduling` wired correctly in `backend/orchestration/pipeline.py`
+- [x] Run intake → scheduling end-to-end: seeded request in, enriched work-order object out in Redis
+- [ ] Coordinate with Michelle so intake and scheduling screens render the real agent output cleanly — pending Michelle's UI

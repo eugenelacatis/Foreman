@@ -59,6 +59,11 @@ A seeded work order flows in, the agent prefills and runs a real gap-fill conver
 - [x] Emit Arize traces for each Claude call — verify spans appear in Phoenix UI
 
 ### Integration (stage two)
-- [ ] Swap pipeline stubs for real agent calls and run full end-to-end: intake → scheduling → invoicing
-- [ ] Confirm work-order object in Redis is correct after each stage
-- [ ] Run demo script: seeded request in, approved invoice + vendor email out
+- [x] Swap pipeline stubs for real agent calls and run full end-to-end: intake → scheduling → invoicing
+- [x] Confirm work-order object in Redis is correct after each stage
+- [x] Run demo script: seeded request in, approved invoice + vendor email out — demo_flow.py passes cleanly
+
+### Remaining tasks
+- [ ] Add gap-fill chat step to `scripts/demo_flow.py` so the rehearsal script produces a filled `template_filled` (currently approves invoice stage without chat, leaving template_filled null)
+- [ ] Verify `trace_id` populates correctly in Phoenix UI during a live run — code fix is in, visual confirmation pending
+- [ ] Merge `eugene` branch to `main` via PR once Michelle's UI is integrated
