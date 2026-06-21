@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Mic } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import DropZone from "./components/DropZone";
 import SearchBar from "./components/SearchBar";
@@ -7,8 +8,9 @@ import NeedsYou from "./components/NeedsYou";
 import Clients from "./components/Clients";
 import WorkOrders from "./components/WorkOrders";
 import WorkOrderToInvoiceFlow from "./components/invoice-flow/WorkOrderToInvoiceFlow";
-import type { StepKey } from "./components/invoice-flow/WorkOrderToInvoiceFlow";
+import VoiceIntake from "./components/VoiceIntake";
 import { createWorkOrder } from "./api/client";
+import type { WorkOrder } from "./api/client";
 
 type View = "dashboard" | "invoice-flow";
 
@@ -16,18 +18,7 @@ export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [workOrderId, setWorkOrderId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [initialStep, setInitialStep] = useState<StepKey>("inbound");
-  const [backendError, setBackendError] = useState<string | null>(null);
-  const [intakeLoading, setIntakeLoading] = useState(false);
-
-  const openFlow = (id: string | null, step: StepKey = "inbound", title?: string | null) => {
-    setWorkOrderId(id);
-    setFileName(title ?? null);
-    setInitialStep(step);
-    setBackendError(null);
-    setIntakeLoading(false);
-    setView("invoice-flow");
-  };
+  const [showVoice, setShowVoice] = useState(false);
 
   const startFlowWithFile = async (file: File) => {
     setIntakeLoading(true);
@@ -41,20 +32,15 @@ export default function App() {
       const wo = await createWorkOrder(rawRequest);
       openFlow(wo.id, "inbound", file.name);
     } catch {
-      openFlow(null, "inbound", file.name);
-      setBackendError("Backend unavailable — running in demo mode with sample data.");
+      setWorkOrderId(null);
     }
   };
 
-  const startFlowWithText = async (text: string) => {
-    setIntakeLoading(true);
-    try {
-      const wo = await createWorkOrder(text);
-      openFlow(wo.id, "inbound", "manual entry");
-    } catch {
-      openFlow(null, "inbound", "manual entry");
-      setBackendError("Backend unavailable — running in demo mode with sample data.");
-    }
+  const startFlowWithVoice = (wo: WorkOrder) => {
+    setShowVoice(false);
+    setFileName("voice-intake.wav");
+    setWorkOrderId(wo.id);
+    setView("invoice-flow");
   };
 
   const backToDashboard = () => {
@@ -109,7 +95,27 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* Clients — reference, not primary action */}
+              <div className="flex flex-col gap-7">
+                <div className="flex flex-col gap-3">
+                  <DropZone onFile={startFlowWithFile} />
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-[var(--color-hairline)]" />
+                    <span className="text-[12.5px] text-[var(--color-ink-3)]">or</span>
+                    <div className="h-px flex-1 bg-[var(--color-hairline)]" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowVoice(true)}
+                    className="flex w-full items-center justify-center gap-2.5 rounded-[10px] border border-[var(--color-hairline)] bg-white py-4 text-[14px] font-medium text-[var(--color-ink)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-tint)]"
+                  >
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-accent-tint)] text-[var(--color-accent)]">
+                      <Mic size={16} strokeWidth={2} />
+                    </span>
+                    Describe the work order by voice
+                  </button>
+                </div>
+                <SearchBar />
+                <NeedsYou />
                 <Clients />
               </div>
             </>
@@ -124,6 +130,13 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {showVoice && (
+        <VoiceIntake
+          onComplete={startFlowWithVoice}
+          onClose={() => setShowVoice(false)}
+        />
+      )}
     </div>
   );
 }
