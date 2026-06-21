@@ -75,9 +75,21 @@ const STEP_TO_STAGE: Record<StepKey, StageKey> = STAGES.reduce(
 const FILE_NAME = "work-order-WO-1041.pdf";
 
 const SEED_LINES: InvoiceLine[] = [
-  { id: "li-1", item: "Compressor capacitor — replace", qty: 1, rate: 92, flagged: false },
+  {
+    id: "li-1",
+    item: "Compressor capacitor — replace",
+    qty: 1,
+    rate: 92,
+    flagged: false,
+  },
   { id: "li-2", item: "Contactor — replace", qty: 1, rate: 48, flagged: false },
-  { id: "li-3", item: "Labor · diagnose & repair", qty: 3.0, rate: 95, flagged: true },
+  {
+    id: "li-3",
+    item: "Labor · diagnose & repair",
+    qty: 3.0,
+    rate: 95,
+    flagged: true,
+  },
 ];
 
 const fmtMoney = (n: number | string) =>
@@ -97,15 +109,22 @@ function toInvoiceLine(
   idx: number,
   laborFlagged: boolean,
 ): InvoiceLine {
-  const item = String(raw.description ?? raw.item ?? raw.name ?? `Item ${idx + 1}`);
+  const item = String(
+    raw.description ?? raw.item ?? raw.name ?? `Item ${idx + 1}`,
+  );
   const qty = Number(raw.qty ?? raw.quantity ?? 1);
-  const rate = Number(raw.rate ?? raw.unit_price ?? raw.price ?? raw.amount ?? 0);
+  const rate = Number(
+    raw.rate ?? raw.unit_price ?? raw.price ?? raw.amount ?? 0,
+  );
   const flagged = laborFlagged && /labor/i.test(item);
   return { id: `li-${idx}`, item, qty, rate, flagged };
 }
 
 function invoiceTotal(lines: InvoiceLine[]): number {
-  return lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0);
+  return lines.reduce(
+    (s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0),
+    0,
+  );
 }
 
 /* ============================================================
@@ -122,8 +141,15 @@ function Mark({ children }: { children: ReactNode }) {
 function FileChip({ name = FILE_NAME }: { name?: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-[8px] border border-[var(--color-hairline)] bg-white px-2 py-1">
-      <Paperclip size={11} strokeWidth={2} className="text-[var(--color-ink-3)]" />
-      <span className="num max-w-[260px] truncate text-[12px] text-[var(--color-ink)]" title={name}>
+      <Paperclip
+        size={11}
+        strokeWidth={2}
+        className="text-[var(--color-ink-3)]"
+      />
+      <span
+        className="num max-w-[260px] truncate text-[12px] text-[var(--color-ink)]"
+        title={name}
+      >
         {name}
       </span>
     </span>
@@ -156,7 +182,11 @@ function StageStepper({
                 : "border border-[var(--color-hairline)] bg-white text-[var(--color-ink-3)]")
             }
           >
-            {done ? <Check size={11} strokeWidth={3} /> : <span className="num">{i + 1}</span>}
+            {done ? (
+              <Check size={11} strokeWidth={3} />
+            ) : (
+              <span className="num">{i + 1}</span>
+            )}
           </span>
         );
         const label = (
@@ -194,7 +224,9 @@ function StageStepper({
               <span
                 className={
                   "h-px w-6 shrink-0 sm:w-8 " +
-                  (i < currentIdx ? "bg-[var(--color-accent)]" : "bg-[var(--color-hairline)]")
+                  (i < currentIdx
+                    ? "bg-[var(--color-accent)]"
+                    : "bg-[var(--color-hairline)]")
                 }
               />
             ) : null}
@@ -228,11 +260,17 @@ function ReasoningRow({ state, label, detail }: ReasoningItem) {
       </span>
       <span className="text-[13.5px] leading-snug">
         <span
-          className={state === "pending" ? "text-[var(--color-ink-3)]" : "text-[var(--color-ink)]"}
+          className={
+            state === "pending"
+              ? "text-[var(--color-ink-3)]"
+              : "text-[var(--color-ink)]"
+          }
         >
           {label}
         </span>
-        {detail ? <span className="ml-1 text-[var(--color-ink-3)]">({detail})</span> : null}
+        {detail ? (
+          <span className="ml-1 text-[var(--color-ink-3)]">({detail})</span>
+        ) : null}
       </span>
     </li>
   );
@@ -265,7 +303,8 @@ function EmailSourceCard({ condensed = false }: { condensed?: boolean }) {
             <Mail size={13} strokeWidth={1.75} />
           </span>
           <span className="text-[13.5px] font-medium text-[var(--color-ink)]">
-            Source <span className="text-[var(--color-ink-3)]">· email only</span>
+            Source{" "}
+            <span className="text-[var(--color-ink-3)]">· email only</span>
           </span>
         </div>
         <span className="num text-[11.5px] uppercase tracking-wide text-[var(--color-ink-3)]">
@@ -282,15 +321,17 @@ function EmailSourceCard({ condensed = false }: { condensed?: boolean }) {
         <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
           {condensed ? (
             <>
-              Second-floor AC at Cedar Court quit again. We've got <Mark>PO MW-1041</Mark> set up.
-              Same rate, <Mark>$95/hr</Mark>. <Mark>Net 30</Mark> as always.
+              Second-floor AC at Cedar Court quit again. We've got{" "}
+              <Mark>PO MW-1041</Mark> set up. Same rate, <Mark>$95/hr</Mark>.{" "}
+              <Mark>Net 30</Mark> as always.
             </>
           ) : (
             <>
-              Hey — second-floor AC at the Cedar Court building quit again last night. Please get
-              out there this week. We've got <Mark>PO MW-1041</Mark> set up for it. Same rate as
-              usual, <Mark>$95/hr</Mark>. <Mark>Net 30</Mark> as always. Bill straight to dispatch
-              when done.
+              Hey — second-floor AC at the Cedar Court building quit again last
+              night. Please get out there this week. We've got{" "}
+              <Mark>PO MW-1041</Mark> set up for it. Same rate as usual,{" "}
+              <Mark>$95/hr</Mark>. <Mark>Net 30</Mark> as always. Bill straight
+              to dispatch when done.
               <br />— Dana
             </>
           )}
@@ -309,7 +350,10 @@ function CombinedSourceCard() {
             <Mail size={13} strokeWidth={1.75} />
           </span>
           <span className="text-[13.5px] font-medium text-[var(--color-ink)]">
-            Sources <span className="text-[var(--color-ink-3)]">· email + voice note</span>
+            Sources{" "}
+            <span className="text-[var(--color-ink-3)]">
+              · email + voice note
+            </span>
           </span>
         </div>
         <span className="num text-[11.5px] uppercase tracking-wide text-[var(--color-ink-3)]">
@@ -322,8 +366,8 @@ function CombinedSourceCard() {
           Email · Dana Reyes
         </div>
         <p className="text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-          Second-floor AC at Cedar Court quit again. <Mark>PO MW-1041</Mark> set up. Same rate,{" "}
-          <Mark>$95/hr</Mark>. <Mark>Net 30</Mark>.
+          Second-floor AC at Cedar Court quit again. <Mark>PO MW-1041</Mark> set
+          up. Same rate, <Mark>$95/hr</Mark>. <Mark>Net 30</Mark>.
         </p>
       </div>
 
@@ -331,13 +375,18 @@ function CombinedSourceCard() {
 
       <div className="px-4 pb-4">
         <div className="mb-2 flex items-center gap-1.5 text-[11.5px] font-medium uppercase tracking-wide text-[var(--color-ink-3)]">
-          <Mic size={11} strokeWidth={2.25} className="text-[var(--color-accent)]" />
+          <Mic
+            size={11}
+            strokeWidth={2.25}
+            className="text-[var(--color-accent)]"
+          />
           Voice note · Ray (field tech)
         </div>
         <p className="text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
-          "Hey, just finished up at Maplewood — the second-floor unit was tripping on a bad{" "}
-          <Mark>compressor capacitor and contactor</Mark>, swapped both. Maybe{" "}
-          <Mark>3 hours</Mark> total, mostly the diagnose part. All running good."
+          "Hey, just finished up at Maplewood — the second-floor unit was
+          tripping on a bad <Mark>compressor capacitor and contactor</Mark>,
+          swapped both. Maybe <Mark>3 hours</Mark> total, mostly the diagnose
+          part. All running good."
         </p>
       </div>
     </div>
@@ -357,7 +406,15 @@ interface Step1Props {
   pollError?: boolean;
 }
 
-function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, pollError = false }: Step1Props) {
+function Step1Inbound({
+  onNext,
+  wo,
+  polling,
+  approving,
+  fileName,
+  rawRequest,
+  pollError = false,
+}: Step1Props) {
   // Mock animation fallback: runs only when there's no real classification yet
   const [mockDone, setMockDone] = useState(false);
   useEffect(() => {
@@ -381,11 +438,20 @@ function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, po
     // Mock fallback with animation
     return [
       { state: "done", label: "Classified job", detail: "HVAC repair" },
-      { state: "done", label: "Read location", detail: "2nd floor, Cedar Court" },
+      {
+        state: "done",
+        label: "Read location",
+        detail: "2nd floor, Cedar Court",
+      },
       { state: "done", label: "Read terms", detail: "PO, $95/hr, Net 30" },
       mockDone || !polling
         ? { state: "done", label: "Proposed a visit time", detail: "Wed 11 AM" }
-        : { state: "spin", label: polling ? "Waiting for intake agent…" : "Proposing a visit time…" },
+        : {
+            state: "spin",
+            label: polling
+              ? "Waiting for intake agent…"
+              : "Proposing a visit time…",
+          },
     ];
   }, [wo?.classification, mockDone, polling]);
 
@@ -397,10 +463,18 @@ function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, po
             <Check size={10} strokeWidth={3} />
           </span>
         ) : !pollError ? (
-          <Loader2 size={15} strokeWidth={2} className="animate-spin text-[var(--color-accent)]" />
+          <Loader2
+            size={15}
+            strokeWidth={2}
+            className="animate-spin text-[var(--color-accent)]"
+          />
         ) : null}
         <span className="font-medium text-[var(--color-ink)]">
-          {wo?.classification ? "Work order read" : pollError ? "Demo mode" : "Reading the work order…"}
+          {wo?.classification
+            ? "Work order read"
+            : pollError
+              ? "Demo mode"
+              : "Reading the work order…"}
         </span>
         <span className="text-[var(--color-ink-3)]">·</span>
         <span className="text-[var(--color-ink-2)]">
@@ -418,7 +492,10 @@ function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, po
                   <Paperclip size={13} strokeWidth={1.75} />
                 </span>
                 <span className="text-[13.5px] font-medium text-[var(--color-ink)]">
-                  Source <span className="text-[var(--color-ink-3)]">· uploaded file</span>
+                  Source{" "}
+                  <span className="text-[var(--color-ink-3)]">
+                    · uploaded file
+                  </span>
                 </span>
               </div>
               <span className="num text-[11.5px] uppercase tracking-wide text-[var(--color-ink-3)]">
@@ -437,7 +514,9 @@ function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, po
         <ReasoningCard items={items} />
       </div>
 
-      <InboundPartsView partsSuggestion={wo?.schedule?.parts_suggestion ?? undefined} />
+      <InboundPartsView
+        partsSuggestion={wo?.schedule?.parts_suggestion ?? undefined}
+      />
 
       <div className="flex justify-end">
         <button
@@ -462,22 +541,39 @@ function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, po
 /* ============================================================
    Step 3 — POST-JOB READING (email + voice note)
    ============================================================ */
-function Step3PostJob({ onNext, onBack, wo }: { onNext: () => void; onBack?: () => void; wo: WorkOrder | null }) {
+function Step3PostJob({
+  onNext,
+  onBack,
+  wo,
+}: {
+  onNext: () => void;
+  onBack?: () => void;
+  wo: WorkOrder | null;
+}) {
   const classification = wo?.classification;
   const parts = classification
-    ? (classification.completeness_flags ?? []).filter((f) => !/labor|rate|po|terms/i.test(f))
+    ? (classification.completeness_flags ?? []).filter(
+        (f) => !/labor|rate|po|terms/i.test(f),
+      )
     : [];
   const jobType = classification?.job_type ?? "field job";
 
-  const items = useMemo((): ReasoningItem[] => [
-    { state: "done", label: "Re-read the work order" },
-    { state: "done", label: "Parsed job type", detail: jobType },
-    parts.length
-      ? { state: "done", label: "Extracted fields", detail: parts.slice(0, 3).join(", ") }
-      : { state: "done", label: "Extracted fields from work order" },
-    { state: "done", label: "Checked invoice history for similar jobs" },
-    { state: "done", label: "Ready to draft invoice" },
-  ], [jobType, parts]);
+  const items = useMemo(
+    (): ReasoningItem[] => [
+      { state: "done", label: "Re-read the work order" },
+      { state: "done", label: "Parsed job type", detail: jobType },
+      parts.length
+        ? {
+            state: "done",
+            label: "Extracted fields",
+            detail: parts.slice(0, 3).join(", "),
+          }
+        : { state: "done", label: "Extracted fields from work order" },
+      { state: "done", label: "Checked invoice history for similar jobs" },
+      { state: "done", label: "Ready to draft invoice" },
+    ],
+    [jobType, parts],
+  );
 
   const rawRequest = wo?.raw_request;
 
@@ -493,8 +589,14 @@ function Step3PostJob({ onNext, onBack, wo }: { onNext: () => void; onBack?: () 
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-[14px]">
-        <Check size={15} strokeWidth={2.5} className="text-[var(--color-sent-ink)]" />
-        <span className="font-medium text-[var(--color-ink)]">Work order reviewed</span>
+        <Check
+          size={15}
+          strokeWidth={2.5}
+          className="text-[var(--color-sent-ink)]"
+        />
+        <span className="font-medium text-[var(--color-ink)]">
+          Work order reviewed
+        </span>
         <span className="text-[var(--color-ink-3)]">·</span>
         <span className="text-[var(--color-ink-2)]">{jobType}</span>
       </div>
@@ -508,7 +610,10 @@ function Step3PostJob({ onNext, onBack, wo }: { onNext: () => void; onBack?: () 
                   <Paperclip size={13} strokeWidth={1.75} />
                 </span>
                 <span className="text-[13.5px] font-medium text-[var(--color-ink)]">
-                  Source <span className="text-[var(--color-ink-3)]">· work order</span>
+                  Source{" "}
+                  <span className="text-[var(--color-ink-3)]">
+                    · work order
+                  </span>
                 </span>
               </div>
             </div>
@@ -534,7 +639,9 @@ function Step3PostJob({ onNext, onBack, wo }: { onNext: () => void; onBack?: () 
             <ChevronLeft size={14} strokeWidth={2} />
             Back to Schedule
           </button>
-        ) : <span />}
+        ) : (
+          <span />
+        )}
         <button
           type="button"
           onClick={onNext}
@@ -561,7 +668,13 @@ interface Step4Props {
   invoiceLoading?: boolean;
 }
 
-function Step4Invoice({ onApprove, onStepBack, wo, approving, invoiceLoading = false }: Step4Props) {
+function Step4Invoice({
+  onApprove,
+  onStepBack,
+  wo,
+  approving,
+  invoiceLoading = false,
+}: Step4Props) {
   const completenessFlags = wo?.classification?.completeness_flags ?? [];
   const laborFlagged = completenessFlags.includes("labor_rate");
 
@@ -592,7 +705,9 @@ function Step4Invoice({ onApprove, onStepBack, wo, approving, invoiceLoading = f
     setLines((ls) => [
       ...ls,
       {
-        id: "li-" + (Math.max(0, ...ls.map((l) => Number(l.id.split("-")[1]) || 0)) + 1),
+        id:
+          "li-" +
+          (Math.max(0, ...ls.map((l) => Number(l.id.split("-")[1]) || 0)) + 1),
         item: "",
         qty: 1,
         rate: 0,
@@ -609,7 +724,9 @@ function Step4Invoice({ onApprove, onStepBack, wo, approving, invoiceLoading = f
           <div className="font-display text-[17px] font-semibold tracking-tight text-[var(--color-ink)]">
             Invoice draft
           </div>
-          <span className="num text-[13px] text-[var(--color-ink-3)]">· {invoiceLabel}</span>
+          <span className="num text-[13px] text-[var(--color-ink-3)]">
+            · {invoiceLabel}
+          </span>
         </div>
 
         {/* Center: tab toggle */}
@@ -660,7 +777,11 @@ function Step4Invoice({ onApprove, onStepBack, wo, approving, invoiceLoading = f
 
       {invoiceLoading && (
         <div className="flex items-center gap-2 rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-2.5">
-          <Loader2 size={13} strokeWidth={2} className="animate-spin text-[var(--color-accent)]" />
+          <Loader2
+            size={13}
+            strokeWidth={2}
+            className="animate-spin text-[var(--color-accent)]"
+          />
           <span className="text-[12.5px] text-[var(--color-ink-2)]">
             Generating invoice — showing draft data
           </span>
@@ -694,7 +815,14 @@ interface EditSplitProps {
   invoiceLabel: string;
 }
 
-function EditSplit({ lines, total, update, addLine, laborInputRef, invoiceLabel }: EditSplitProps) {
+function EditSplit({
+  lines,
+  total,
+  update,
+  addLine,
+  laborInputRef,
+  invoiceLabel,
+}: EditSplitProps) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_1fr]">
       <div className="rounded-[10px] border border-[var(--color-hairline)] bg-white">
@@ -770,7 +898,9 @@ function EditSplit({ lines, total, update, addLine, laborInputRef, invoiceLabel 
 
       <div className="rounded-[10px] border border-[var(--color-hairline)] bg-white">
         <div className="flex items-center justify-between border-b border-[var(--color-hairline)] px-4 py-3">
-          <span className="text-[13.5px] font-medium text-[var(--color-ink)]">Live preview</span>
+          <span className="text-[13.5px] font-medium text-[var(--color-ink)]">
+            Live preview
+          </span>
           <span className="num text-[11.5px] uppercase tracking-wide text-[var(--color-ink-3)]">
             {invoiceLabel}
           </span>
@@ -804,10 +934,18 @@ function EditSplit({ lines, total, update, addLine, laborInputRef, invoiceLabel 
                 key={l.id}
                 className="grid grid-cols-[1fr_44px_64px_72px] gap-2 border-t border-[var(--color-hairline)] py-1.5 text-[12.5px] first:border-t-0"
               >
-                <span className="truncate text-[var(--color-ink)]">{l.item || "—"}</span>
-                <span className="num text-right text-[var(--color-ink-2)]">{fmtQty(l.qty)}</span>
-                <span className="num text-right text-[var(--color-ink-2)]">{fmtMoney(l.rate)}</span>
-                <span className="num text-right text-[var(--color-ink)]">{fmtMoney(amount)}</span>
+                <span className="truncate text-[var(--color-ink)]">
+                  {l.item || "—"}
+                </span>
+                <span className="num text-right text-[var(--color-ink-2)]">
+                  {fmtQty(l.qty)}
+                </span>
+                <span className="num text-right text-[var(--color-ink-2)]">
+                  {fmtMoney(l.rate)}
+                </span>
+                <span className="num text-right text-[var(--color-ink)]">
+                  {fmtMoney(amount)}
+                </span>
               </div>
             );
           })}
@@ -823,8 +961,9 @@ function EditSplit({ lines, total, update, addLine, laborInputRef, invoiceLabel 
         </div>
 
         <div className="m-4 rounded-[8px] bg-[var(--color-accent-tint)] px-4 py-3 text-[12px] leading-relaxed text-[var(--color-ink-2)]">
-          <span className="font-medium text-[var(--color-ink)]">Net 30</span> · due Jul 19, 2026.
-          Reference <span className="num text-[var(--color-ink)]">{invoiceLabel}</span>.
+          <span className="font-medium text-[var(--color-ink)]">Net 30</span> ·
+          due Jul 19, 2026. Reference{" "}
+          <span className="num text-[var(--color-ink)]">{invoiceLabel}</span>.
         </div>
       </div>
     </div>
@@ -857,15 +996,27 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
   const invoiceLabel = wo?.invoice?.invoice_id ?? "INV";
 
   // Extract client name from entities or raw_request
-  const entities = (wo?.classification?.entities ?? {}) as Record<string, unknown>;
+  const entities = (wo?.classification?.entities ?? {}) as Record<
+    string,
+    unknown
+  >;
   const clientName = (() => {
-    for (const k of ["client", "client_name", "customer", "company", "property_manager", "location"]) {
+    for (const k of [
+      "client",
+      "client_name",
+      "customer",
+      "company",
+      "property_manager",
+      "location",
+    ]) {
       const v = entities[k];
       if (typeof v === "string" && v.trim()) return v.trim();
     }
     const raw = wo?.raw_request ?? "";
     const m = raw.match(/From:\s*[\w.]+@([\w.]+)/i);
-    return m ? m[1].split(".")[0].charAt(0).toUpperCase() + m[1].split(".")[0].slice(1) : null;
+    return m
+      ? m[1].split(".")[0].charAt(0).toUpperCase() + m[1].split(".")[0].slice(1)
+      : null;
   })();
 
   const woRef = wo?.id ? wo.id.slice(0, 8).toUpperCase() : null;
@@ -875,8 +1026,17 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
     const draft = wo?.invoice?.vendor_email_draft ?? "";
     const toMatch = draft.match(/To:\s*(\S+@\S+)/i);
     if (toMatch) return toMatch[1];
-    const ents = (wo?.classification?.entities ?? {}) as Record<string, unknown>;
-    for (const k of ["client_email", "customer_email", "email", "to", "dispatch_email"]) {
+    const ents = (wo?.classification?.entities ?? {}) as Record<
+      string,
+      unknown
+    >;
+    for (const k of [
+      "client_email",
+      "customer_email",
+      "email",
+      "to",
+      "dispatch_email",
+    ]) {
       const v = ents[k];
       if (typeof v === "string" && v.includes("@")) return v.trim();
     }
@@ -891,7 +1051,10 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
       wo?.invoice?.vendor_email_draft ??
         `Please find invoice ${invoiceLabel} attached.\n\nThank you,\nR&K HVAC Services`,
     );
-    window.open(`mailto:${clientEmail ?? ""}?subject=${subject}&body=${body}`, "_blank");
+    window.open(
+      `mailto:${clientEmail ?? ""}?subject=${subject}&body=${body}`,
+      "_blank",
+    );
     setOpened(true);
   };
 
@@ -906,9 +1069,21 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
             Invoice approved
           </div>
           <div className="text-[13px] text-[var(--color-ink-2)]">
-            {clientName && <>{clientName} <span className="text-[var(--color-ink-3)]">·</span>{" "}</>}
-            {woRef && <><span className="num">{woRef}</span>{" "}<span className="text-[var(--color-ink-3)]">·</span>{" "}</>}
-            <span className="num text-[var(--color-ink)]">{fmtMoney(total)}</span>
+            {clientName && (
+              <>
+                {clientName}{" "}
+                <span className="text-[var(--color-ink-3)]">·</span>{" "}
+              </>
+            )}
+            {woRef && (
+              <>
+                <span className="num">{woRef}</span>{" "}
+                <span className="text-[var(--color-ink-3)]">·</span>{" "}
+              </>
+            )}
+            <span className="num text-[var(--color-ink)]">
+              {fmtMoney(total)}
+            </span>
           </div>
         </div>
       </div>
@@ -916,11 +1091,17 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
       <div className="rounded-[10px] border border-[var(--color-hairline)] bg-white p-5">
         <p className="text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
           Saved as draft. The agent stops here — you send it.{" "}
-          <span className="text-[var(--color-ink)] font-medium">Opens your email app; you control when it sends.</span>
+          <span className="text-[var(--color-ink)] font-medium">
+            Opens your email app; you control when it sends.
+          </span>
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <ArmorIQGate
-            action={{ type: "send-invoice", invoiceId: invoiceLabel, amount: total }}
+            action={{
+              type: "send-invoice",
+              invoiceId: invoiceLabel,
+              amount: total,
+            }}
             onAllow={handleSend}
           >
             {(check) => (
@@ -971,7 +1152,8 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
 
         {wo?.invoice?.invoice_id ? (
           <p className="mt-4 text-[12px] text-[var(--color-ink-3)]">
-            Invoice <span className="num">{invoiceLabel}</span> saved to work order.
+            Invoice <span className="num">{invoiceLabel}</span> saved to work
+            order.
           </p>
         ) : null}
       </div>
@@ -1024,7 +1206,11 @@ export default function WorkOrderToInvoiceFlow({
           tid = setTimeout(poll, 500);
         }
         // If schedule is missing but we know scheduling should have run, keep polling
-        if (data.classification && !data.schedule && data.approvals.intake_approved) {
+        if (
+          data.classification &&
+          !data.schedule &&
+          data.approvals.intake_approved
+        ) {
           tid = setTimeout(poll, 1000);
         }
       } catch {
@@ -1032,7 +1218,9 @@ export default function WorkOrderToInvoiceFlow({
         attempts += 1;
         if (attempts >= MAX_ATTEMPTS) {
           setPollError(true);
-          setToastMsg("Backend not responding — running in demo mode with sample data.");
+          setToastMsg(
+            "Backend not responding — running in demo mode with sample data.",
+          );
         } else {
           tid = setTimeout(poll, 2000);
         }
@@ -1091,10 +1279,14 @@ export default function WorkOrderToInvoiceFlow({
     };
 
     fetchInvoice();
-    return () => { cancelled = true; clearTimeout(tid); };
+    return () => {
+      cancelled = true;
+      clearTimeout(tid);
+    };
   }, [workOrderId, step, wo?.invoice]);
 
-  const pollingClassification = !!workOrderId && step === "inbound" && !wo?.classification;
+  const pollingClassification =
+    !!workOrderId && step === "inbound" && !wo?.classification;
   const invoiceLoading = !!workOrderId && step === "invoice" && !wo?.invoice;
 
   return (
@@ -1117,7 +1309,9 @@ export default function WorkOrderToInvoiceFlow({
 
       {toastMsg && (
         <div className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-2.5">
-          <span className="text-[12.5px] text-[var(--color-ink-2)]">{toastMsg}</span>
+          <span className="text-[12.5px] text-[var(--color-ink-2)]">
+            {toastMsg}
+          </span>
           <button
             type="button"
             onClick={() => setToastMsg(null)}

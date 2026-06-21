@@ -23,7 +23,11 @@ export default function App() {
   const [backendError, setBackendError] = useState<string | null>(null);
   const [initialStep, setInitialStep] = useState<StepKey>("inbound");
 
-  const openFlow = (id: string | null, step: StepKey, title?: string | null) => {
+  const openFlow = (
+    id: string | null,
+    step: StepKey,
+    title?: string | null,
+  ) => {
     setWorkOrderId(id);
     setFileName(title ?? null);
     setInitialStep(step);
@@ -96,10 +100,16 @@ export default function App() {
                   <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
                     New work order
                   </p>
-                  <DropZone onFile={startFlowWithFile} onText={startFlowWithText} loading={intakeLoading} />
+                  <DropZone
+                    onFile={startFlowWithFile}
+                    onText={startFlowWithText}
+                    loading={intakeLoading}
+                  />
                   <div className="mt-3 flex items-center gap-3">
                     <div className="h-px flex-1 bg-[var(--color-hairline)]" />
-                    <span className="text-[12.5px] text-[var(--color-ink-3)]">or</span>
+                    <span className="text-[12.5px] text-[var(--color-ink-3)]">
+                      or
+                    </span>
                     <div className="h-px flex-1 bg-[var(--color-hairline)]" />
                   </div>
                   <button
@@ -117,12 +127,15 @@ export default function App() {
                 <section>
                   <SearchBar
                     onSelect={(r: SearchResult) => {
-                      if (r.type === "workOrder") openFlow(r.id, "inbound", r.title);
+                      if (r.type === "workOrder")
+                        openFlow(r.id, "inbound", r.title);
                     }}
                   />
                   <div className="mt-4">
                     <WorkOrders
-                      onViewOrder={(row) => openFlow(row.id, "inbound", row.title)}
+                      onViewOrder={(row) =>
+                        openFlow(row.id, "inbound", row.title)
+                      }
                     />
                   </div>
                 </section>

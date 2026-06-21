@@ -23,7 +23,9 @@ _FLAG_QUESTIONS: dict[str, str] = {
 }
 
 _GENERIC_QUESTION = "Could you give me a bit more detail so I can complete the request?"
-_FALLBACK_QUESTION = "Could you describe the job — what needs fixing, where, and how urgent is it?"
+_FALLBACK_QUESTION = (
+    "Could you describe the job — what needs fixing, where, and how urgent is it?"
+)
 
 
 def question_for_flags(flags: list[str]) -> str | None:
@@ -32,9 +34,9 @@ def question_for_flags(flags: list[str]) -> str | None:
     'FALLBACK' means intake failed to parse anything useful — ask an open-ended
     question to recover, rather than treating it as complete.
     """
+    if "FALLBACK" in flags:
+        return _FALLBACK_QUESTION
     for flag in flags:
-        if flag == "FALLBACK":
-            return _FALLBACK_QUESTION
         return _FLAG_QUESTIONS.get(flag.upper(), _GENERIC_QUESTION)
     return None
 

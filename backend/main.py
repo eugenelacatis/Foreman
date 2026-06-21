@@ -14,6 +14,7 @@ from backend.api.orkes_routes import orkes_router
 from backend.api.routes import router
 from backend.orkes.agentspan_foreman import shutdown as agentspan_shutdown
 from backend.state.redis_client import close_redis, init_redis, _client
+from backend.state.seed import seed_demo_work_orders
 
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
@@ -28,6 +29,7 @@ sentry_sdk.init(
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_redis()
     await _client().ping()
+    await seed_demo_work_orders()
     yield
     await agentspan_shutdown()
     await close_redis()

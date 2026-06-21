@@ -83,6 +83,11 @@
   }
 }
 
+/* Tailwind preflight sets img { max-width: 100% } which breaks Leaflet tiles */
+.leaflet-container img {
+  max-width: none;
+}
+
 html,
 body,
 #root {
