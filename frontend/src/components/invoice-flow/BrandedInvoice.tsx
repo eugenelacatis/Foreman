@@ -1,88 +1,132 @@
 import { Wrench } from "lucide-react";
 
-interface InvoiceLine {
+interface BrandedInvoiceLine {
   item: string;
-  qty: number;
-  rate: number;
+  qty: number | string;
+  rate: number | string;
 }
 
-const LINES: InvoiceLine[] = [
+interface BrandedInvoiceProps {
+  lines?: BrandedInvoiceLine[];
+  invoiceLabel?: string;
+}
+
+const FALLBACK_LINES: BrandedInvoiceLine[] = [
   { item: "Compressor capacitor — replace", qty: 1, rate: 92.0 },
   { item: "Contactor — replace", qty: 1, rate: 48.0 },
   { item: "Labor · diagnose & repair", qty: 3.0, rate: 95.0 },
 ];
 
-const fmtMoney = (n: number) =>
-  "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtQty = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+const fmtMoney = (n: number | string) =>
+  "$" +
+  (Number(n) || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
-export default function BrandedInvoice() {
-  const subtotal = LINES.reduce((s, l) => s + l.qty * l.rate, 0)
-  const tax = 0
-  const total = subtotal + tax
+const fmtQty = (n: number | string) => {
+  const num = Number(n) || 0;
+  return Number.isInteger(num) ? String(num) : num.toFixed(1);
+};
+
+export default function BrandedInvoice({
+  lines = FALLBACK_LINES,
+  invoiceLabel = "INV-1041",
+}: BrandedInvoiceProps) {
+  const subtotal = lines.reduce(
+    (s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0),
+    0,
+  );
 
   return (
-    <div className="overflow-hidden rounded-[10px] border border-[var(--color-hairline)] bg-white">
+    <div className="overflow-hidden rounded-[12px] border border-[var(--color-hairline)] bg-white">
       {/* ── Header ── */}
-      <div className="flex flex-wrap items-start justify-between gap-4 px-8 pt-8 pb-6">
-        <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-[10px] bg-[var(--color-accent-tint)] text-[var(--color-accent)]">
-            <Wrench size={20} strokeWidth={2} />
+      <div className="flex flex-wrap items-start justify-between gap-6 px-8 pt-9 pb-7">
+        <div className="flex items-center gap-3.5">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px] bg-[var(--color-accent-tint)] text-[var(--color-accent)]">
+            <Wrench size={22} strokeWidth={1.75} />
           </span>
           <div>
-            <div className="font-display text-[17px] font-semibold tracking-tight text-[var(--color-ink)]">
+            <div className="font-display text-[18px] font-semibold tracking-tight text-[var(--color-ink)]">
               R&amp;K HVAC Services
             </div>
-            <div className="text-[12.5px] text-[var(--color-ink-2)]">
-              ray@rkhvacservices.com <span className="text-[var(--color-ink-3)]">·</span> (555)
-              014-2231
+            <div className="mt-0.5 text-[12.5px] text-[var(--color-ink-2)]">
+              ray@rkhvacservices.com
             </div>
           </div>
         </div>
+
         <div className="text-right">
-          <div className="font-display text-[20px] font-semibold tracking-tight text-[var(--color-ink)]">
+          <div className="font-display text-[28px] font-semibold tracking-tight text-[var(--color-ink)]">
             Invoice
           </div>
-          <div className="num text-[12.5px] uppercase tracking-wide text-[var(--color-ink-3)]">
-            INV-1041
+          <div className="num mt-0.5 text-[13px] uppercase tracking-wide text-[var(--color-ink-3)]">
+            {invoiceLabel}
+          </div>
+          <div className="mt-3 space-y-1 text-[12.5px]">
+            <div className="text-[var(--color-ink-2)]">
+              Issued{" "}
+              <span className="num text-[var(--color-ink)]">Jun 19, 2026</span>
+            </div>
+            <div className="text-[var(--color-ink-2)]">
+              Due{" "}
+              <span className="num font-medium text-[var(--color-ink)]">
+                Jul 19, 2026
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="mx-8 h-px bg-[var(--color-hairline)]" />
 
-      {/* ── Billed to · Details ── */}
-      <div className="grid grid-cols-1 gap-8 px-8 py-6 sm:grid-cols-2">
+      {/* ── Billed by / Billed to / Details ── */}
+      <div className="grid grid-cols-1 gap-7 px-8 py-7 sm:grid-cols-3">
         <div>
-          <div className="mb-2 text-[11.5px] font-medium uppercase tracking-wide text-[var(--color-ink-3)]">
-            Billed to
+          <div className="mb-3 text-[10.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
+            Billed by
           </div>
-          <div className="text-[14px] font-medium text-[var(--color-ink)]">
-            Maplewood HVAC &amp; Refrigeration
+          <div className="text-[13.5px] font-medium text-[var(--color-ink)]">
+            R&amp;K HVAC Services
           </div>
-          <div className="text-[13px] text-[var(--color-ink-2)]">Attn: Dana Reyes</div>
-          <div className="text-[13px] text-[var(--color-ink-2)]">dispatch@maplewoodhvac.com</div>
-          <div className="mt-2 text-[12.5px] text-[var(--color-ink-3)]">
-            Service location: 412 Cedar Court, Unit 2B
+          <div className="mt-1 space-y-0.5 text-[13px] text-[var(--color-ink-2)]">
+            <div>ray@rkhvacservices.com</div>
+            <div>(555) 014-2231</div>
           </div>
         </div>
+
         <div>
-          <div className="mb-2 text-[11.5px] font-medium uppercase tracking-wide text-[var(--color-ink-3)]">
+          <div className="mb-3 text-[10.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
+            Billed to
+          </div>
+          <div className="text-[13.5px] font-medium text-[var(--color-ink)]">
+            Maplewood HVAC &amp; Refrigeration
+          </div>
+          <div className="mt-1 space-y-0.5 text-[13px] text-[var(--color-ink-2)]">
+            <div>Attn: Dana Reyes</div>
+            <div>dispatch@maplewoodhvac.com</div>
+          </div>
+          <div className="mt-2 text-[12px] text-[var(--color-ink-3)]">
+            412 Cedar Court, Unit 2B
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-3 text-[10.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
             Details
           </div>
-          <dl className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-[13px] text-[var(--color-ink-2)]">Issued</dt>
-              <dd className="num text-[13px] text-[var(--color-ink)]">Jun 19, 2026</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-[13px] text-[var(--color-ink-2)]">Due</dt>
-              <dd className="num text-[13px] text-[var(--color-ink)]">Jul 19, 2026</dd>
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <dt className="text-[13px] text-[var(--color-ink-2)]">PO</dt>
-              <dd className="num text-[13px] text-[var(--color-ink)]">MW-1041</dd>
-            </div>
+          <dl className="flex flex-col gap-2">
+            {[
+              { label: "Invoice date", value: "Jun 19, 2026" },
+              { label: "Due date", value: "Jul 19, 2026" },
+              { label: "PO reference", value: "MW-1041" },
+              { label: "Terms", value: "Net 30" },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex items-baseline justify-between gap-4">
+                <dt className="text-[12.5px] text-[var(--color-ink-2)]">{label}</dt>
+                <dd className="num text-[12.5px] text-[var(--color-ink)]">{value}</dd>
+              </div>
+            ))}
           </dl>
         </div>
       </div>
@@ -90,84 +134,82 @@ export default function BrandedInvoice() {
       <div className="mx-8 h-px bg-[var(--color-hairline)]" />
 
       {/* ── Line items ── */}
-      <div className="px-8 py-6">
-        <div className="overflow-hidden rounded-[8px] border border-[var(--color-hairline)]">
-          <table className="w-full border-collapse text-left">
-            <thead>
-              <tr className="bg-[#fafbfd]">
-                <th className="px-4 py-2.5 text-[11.5px] font-medium uppercase tracking-wide text-[var(--color-ink-3)]">
-                  Description
-                </th>
-                <th className="px-4 py-2.5 text-right text-[11.5px] font-medium uppercase tracking-wide text-[var(--color-ink-3)]">
-                  Qty
-                </th>
-                <th className="px-4 py-2.5 text-right text-[11.5px] font-medium uppercase tracking-wide text-[var(--color-ink-3)]">
-                  Rate
-                </th>
-                <th className="px-4 py-2.5 text-right text-[11.5px] font-medium uppercase tracking-wide text-[var(--color-ink-3)]">
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {LINES.map((l, i) => (
-                <tr
-                  key={l.item}
-                  className={i > 0 ? 'border-t border-[var(--color-hairline)]' : ''}
+      <div className="px-8 py-7">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b-2 border-[var(--color-hairline)]">
+              {["Item", "Qty", "Rate", "Amount"].map((h, i) => (
+                <th
+                  key={h}
+                  className={
+                    "pb-3 text-[10.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)] " +
+                    (i === 0 ? "text-left" : "text-right")
+                  }
                 >
-                  <td className="px-4 py-3 text-[13.5px] text-[var(--color-ink)]">{l.item}</td>
-                  <td className="num px-4 py-3 text-right text-[13px] text-[var(--color-ink-2)]">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((l, i) => {
+              const amount = (Number(l.qty) || 0) * (Number(l.rate) || 0);
+              return (
+                <tr
+                  key={i}
+                  className="border-b border-[var(--color-hairline)] last:border-b-0"
+                >
+                  <td className="py-3.5 pr-4 text-[13.5px] text-[var(--color-ink)]">
+                    {l.item}
+                  </td>
+                  <td className="num py-3.5 text-right text-[13.5px] text-[var(--color-ink-2)]">
                     {fmtQty(l.qty)}
                   </td>
-                  <td className="num px-4 py-3 text-right text-[13px] text-[var(--color-ink-2)]">
+                  <td className="num py-3.5 text-right text-[13.5px] text-[var(--color-ink-2)]">
                     {fmtMoney(l.rate)}
                   </td>
-                  <td className="num px-4 py-3 text-right text-[13.5px] text-[var(--color-ink)]">
-                    {fmtMoney(l.qty * l.rate)}
+                  <td className="num py-3.5 text-right text-[13.5px] font-medium text-[var(--color-ink)]">
+                    {fmtMoney(amount)}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+          </tbody>
+        </table>
 
         {/* Totals */}
-        <div className="mt-4 flex justify-end">
-          <dl className="flex w-full max-w-[260px] flex-col gap-1.5">
+        <div className="mt-6 flex justify-end">
+          <dl className="w-[230px] flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <dt className="text-[13px] text-[var(--color-ink-2)]">Subtotal</dt>
-              <dd className="num text-[13px] text-[var(--color-ink)]">{fmtMoney(subtotal)}</dd>
+              <dd className="num text-[13px] text-[var(--color-ink)]">
+                {fmtMoney(subtotal)}
+              </dd>
             </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-[13px] text-[var(--color-ink-2)]">Tax</dt>
-              <dd className="num text-[13px] text-[var(--color-ink)]">{fmtMoney(tax)}</dd>
-            </div>
-            <div className="mt-1 flex items-center justify-between border-t border-[var(--color-hairline)] pt-2">
-              <dt className="text-[13.5px] font-medium text-[var(--color-ink)]">Total due</dt>
-              <dd className="num text-[17px] font-semibold text-[var(--color-accent)]">
-                {fmtMoney(total)}
+            <div className="flex items-center justify-between border-t-2 border-[var(--color-hairline)] pt-3">
+              <dt className="text-[14.5px] font-semibold text-[var(--color-ink)]">
+                Total due
+              </dt>
+              <dd className="num text-[22px] font-semibold text-[var(--color-accent)]">
+                {fmtMoney(subtotal)}
               </dd>
             </div>
           </dl>
         </div>
       </div>
 
-      {/* ── Payment block ── */}
-      <div className="mx-8 mb-6 rounded-[8px] bg-[var(--color-accent-tint)] px-5 py-4">
-        <div className="text-[13px] font-medium text-[var(--color-ink)]">
-          Payment <span className="text-[var(--color-ink-3)]">·</span>{' '}
-          <span className="text-[var(--color-ink-2)]">Net 30, due Jul 19, 2026.</span>
-        </div>
-        <div className="mt-1 text-[12.5px] leading-relaxed text-[var(--color-ink-2)]">
-          Pay by check to R&amp;K HVAC Services, or ACH (routing &amp; account on file). Reference{' '}
-          <span className="num text-[var(--color-ink)]">INV-1041</span>.
-        </div>
-      </div>
-
       {/* ── Footer ── */}
-      <div className="border-t border-[var(--color-hairline)] px-8 py-4 text-center text-[12px] text-[var(--color-ink-3)]">
-        Thanks for the work — questions? ray@rkhvacservices.com
+      <div className="border-t border-[var(--color-hairline)] px-8 py-5">
+        <div className="text-[12.5px] text-[var(--color-ink-2)]">
+          <span className="font-medium text-[var(--color-ink)]">Net 30</span>
+          {" · "}due Jul 19, 2026{" · "}Reference{" "}
+          <span className="num text-[var(--color-ink)]">{invoiceLabel}</span>
+        </div>
+        <div className="mt-1 text-[12px] text-[var(--color-ink-3)]">
+          Thank you for the business — questions? ray@rkhvacservices.com ·{" "}
+          (555) 014-2231
+        </div>
       </div>
     </div>
-  )
+  );
 }

@@ -7,7 +7,6 @@ import {
   Mail,
   Mic,
   Send,
-  Pencil,
   Plus,
   RotateCcw,
   Calendar,
@@ -17,6 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import BrandedInvoice from "./BrandedInvoice";
+import PricingView from "./PricingView";
 import { getWorkOrder, approveStage } from "../../api/client";
 import type { WorkOrder } from "../../api/client";
 
@@ -627,13 +627,16 @@ function Step3PostJob({ onNext }: { onNext: () => void }) {
 /* ============================================================
    Step 4 — INVOICE (document default, edit toggle)
    ============================================================ */
+type InvoiceTab = "document" | "edit" | "pricing";
+
 interface Step4Props {
   onApprove: () => void;
+  onBack?: () => void;
   wo: WorkOrder | null;
   approving: boolean;
 }
 
-function Step4Invoice({ onApprove, wo, approving }: Step4Props) {
+function Step4Invoice({ onApprove, onBack, wo, approving }: Step4Props) {
   const completenessFlags = wo?.classification?.completeness_flags ?? [];
   const laborFlagged = completenessFlags.includes("labor_rate");
 
@@ -643,21 +646,19 @@ function Step4Invoice({ onApprove, wo, approving }: Step4Props) {
     return items.map((raw, i) => toInvoiceLine(raw, i, laborFlagged));
   }, [wo?.invoice?.line_items, laborFlagged]);
 
-  const [editing, setEditing] = useState(false);
+  const [tab, setTab] = useState<InvoiceTab>("document");
   const [lines, setLines] = useState<InvoiceLine[]>(apiLines ?? SEED_LINES);
   const laborInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync when backend invoice arrives
   useEffect(() => {
     if (apiLines) setLines(apiLines);
   }, [apiLines]);
 
   useEffect(() => {
-    if (editing) laborInputRef.current?.focus();
-  }, [editing]);
+    if (tab === "edit") laborInputRef.current?.focus();
+  }, [tab]);
 
   const total = useMemo(() => invoiceTotal(lines), [lines]);
-
   const invoiceLabel = wo?.invoice?.invoice_id ?? "INV-1041";
 
   const update = (id: string, patch: Partial<InvoiceLine>) =>
@@ -666,9 +667,7 @@ function Step4Invoice({ onApprove, wo, approving }: Step4Props) {
     setLines((ls) => [
       ...ls,
       {
-        id:
-          "li-" +
-          (Math.max(0, ...ls.map((l) => Number(l.id.split("-")[1]) || 0)) + 1),
+        id: "li-" + (Math.max(0, ...ls.map((l) => Number(l.id.split("-")[1]) || 0)) + 1),
         item: "",
         qty: 1,
         rate: 0,
@@ -678,42 +677,64 @@ function Step4Invoice({ onApprove, wo, approving }: Step4Props) {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* ── Action bar ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <div className="font-display text-[18px] font-semibold tracking-tight text-[var(--color-ink)]">
-            Invoice draft
+        {/* Left: back link (document tab only) */}
+        {onBack && tab === "document" ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1 text-[13px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
+          >
+            <ChevronLeft size={14} strokeWidth={2} />
+            Back to dashboard
+          </button>
+        ) : (
+          <div className="flex flex-wrap items-baseline gap-2">
+            <div className="font-display text-[17px] font-semibold tracking-tight text-[var(--color-ink)]">
+              Invoice draft
+            </div>
+            <span className="num text-[13px] text-[var(--color-ink-3)]">· {invoiceLabel}</span>
           </div>
-          <span className="num text-[13px] text-[var(--color-ink-3)]">· {invoiceLabel}</span>
+        )}
+
+        {/* Center: tab toggle */}
+        <div className="flex items-center rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] p-0.5">
+          {(["document", "edit", "pricing"] as InvoiceTab[]).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={
+                "rounded-[6px] px-3 h-7 text-[12.5px] font-medium capitalize transition-colors " +
+                (tab === t
+                  ? "bg-white text-[var(--color-ink)] shadow-sm"
+                  : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]")
+              }
+            >
+              {t}
+            </button>
+          ))}
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setEditing((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-[8px] border border-[var(--color-hairline)] px-3 h-9 text-[13px] font-medium text-[var(--color-ink)] transition-colors hover:bg-[#fafbfd] hover:border-[var(--color-ink-3)]"
-          >
-            {editing ? (
-              <Check size={13} strokeWidth={2.25} />
-            ) : (
-              <Pencil size={13} strokeWidth={2} />
-            )}
-            {editing ? "Done" : "Edit"}
-          </button>
-          <button
-            type="button"
-            onClick={onApprove}
-            disabled={approving}
-            className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {approving ? (
-              <Loader2 size={13} strokeWidth={2} className="animate-spin" />
-            ) : null}
-            Approve invoice
-            {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
-          </button>
-        </div>
+
+        {/* Right: approve */}
+        <button
+          type="button"
+          onClick={onApprove}
+          disabled={approving}
+          className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {approving ? (
+            <Loader2 size={13} strokeWidth={2} className="animate-spin" />
+          ) : null}
+          Approve invoice
+          {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
+        </button>
       </div>
 
-      {editing ? (
+      {tab === "document" ? (
+        <BrandedInvoice lines={lines} invoiceLabel={invoiceLabel} />
+      ) : tab === "edit" ? (
         <EditSplit
           lines={lines}
           total={total}
@@ -723,7 +744,7 @@ function Step4Invoice({ onApprove, wo, approving }: Step4Props) {
           invoiceLabel={invoiceLabel}
         />
       ) : (
-        <BrandedInvoice />
+        <PricingView lines={lines} />
       )}
     </div>
   );
@@ -1073,6 +1094,7 @@ export default function WorkOrderToInvoiceFlow({
       ) : step === "invoice" ? (
         <Step4Invoice
           onApprove={() => advance("invoice", "approved")}
+          onBack={onBack}
           wo={wo}
           approving={approving}
         />
