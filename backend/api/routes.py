@@ -10,6 +10,7 @@ from opentelemetry import trace
 import sentry_sdk
 from fastapi import APIRouter, Body, HTTPException
 
+from backend.agents.armoriq_client import check_action, sign_plan
 from backend.agents.invoicing_agent import run_invoicing as _run_invoicing
 from backend.agents.question_map import question_for_flags
 from backend.agents.voice_client import LiveTranscriber, synthesize
@@ -62,6 +63,17 @@ async def approve_work_order(
     sentry_sdk.set_tag("work_order_id", wo.id)
     sentry_sdk.set_tag("work_order_status", wo.status)
 
+    if stage not in ("intake", "scheduling", "invoice"):
+        raise HTTPException(status_code=400, detail=f"Unknown stage: {stage}")
+
+    plan_id = await sign_plan(f"approve_{stage}", {"work_order_id": id, "stage": stage})
+    check = await check_action(f"approve_{stage}", plan_id)
+    if not check["allowed"]:
+        raise HTTPException(
+            status_code=409,
+            detail={"blocked": True, "action": f"approve_{stage}", "reason": check["reason"]},
+        )
+
     if stage == "intake":
         wo.approvals.intake_approved = True
         wo.status = WorkOrderStatus.scheduling
@@ -71,8 +83,6 @@ async def approve_work_order(
     elif stage == "invoice":
         wo.approvals.invoice_approved = True
         wo.status = WorkOrderStatus.complete
-    else:
-        raise HTTPException(status_code=400, detail=f"Unknown stage: {stage}")
 
     await save_work_order(wo)
     advanced = await advance_pipeline(id)
@@ -130,6 +140,16 @@ async def invoice_chat(
         else f"Still need: {', '.join(result.get('missing_fields', []))}"
     )
     return {"reply": reply, "work_order": wo}
+
+
+@router.post("/work-orders/{id}/armoriq-check")
+async def armoriq_check(id: str, action: str = Body(..., embed=True)) -> dict:
+    wo = await get_work_order(id)
+    if wo is None:
+        raise HTTPException(status_code=404, detail="Work order not found")
+    plan_id = await sign_plan(action, {"work_order_id": id})
+    result = await check_action(action, plan_id)
+    return result
 
 
 async def _send_json(ws: WebSocket, payload: dict) -> None:
