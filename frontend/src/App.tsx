@@ -5,9 +5,9 @@ import DropZone from "./components/DropZone";
 import SearchBar from "./components/SearchBar";
 import type { SearchResult } from "./components/SearchBar";
 import NeedsYou from "./components/NeedsYou";
-import Clients from "./components/Clients";
 import WorkOrders from "./components/WorkOrders";
 import WorkOrderToInvoiceFlow from "./components/invoice-flow/WorkOrderToInvoiceFlow";
+import type { StepKey } from "./components/invoice-flow/WorkOrderToInvoiceFlow";
 import VoiceIntake from "./components/VoiceIntake";
 import { createWorkOrder } from "./api/client";
 import type { WorkOrder } from "./api/client";
@@ -19,6 +19,18 @@ export default function App() {
   const [workOrderId, setWorkOrderId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [showVoice, setShowVoice] = useState(false);
+  const [intakeLoading, setIntakeLoading] = useState(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
+  const [initialStep, setInitialStep] = useState<StepKey>("inbound");
+
+  const openFlow = (id: string | null, step: StepKey, title?: string | null) => {
+    setWorkOrderId(id);
+    setFileName(title ?? null);
+    setInitialStep(step);
+    setIntakeLoading(false);
+    setBackendError(null);
+    setView("invoice-flow");
+  };
 
   const startFlowWithFile = async (file: File) => {
     setIntakeLoading(true);
@@ -32,15 +44,25 @@ export default function App() {
       const wo = await createWorkOrder(rawRequest);
       openFlow(wo.id, "inbound", file.name);
     } catch {
+      setIntakeLoading(false);
+      setWorkOrderId(null);
+    }
+  };
+
+  const startFlowWithText = async (text: string) => {
+    setIntakeLoading(true);
+    try {
+      const wo = await createWorkOrder(text);
+      openFlow(wo.id, "inbound", null);
+    } catch {
+      setIntakeLoading(false);
       setWorkOrderId(null);
     }
   };
 
   const startFlowWithVoice = (wo: WorkOrder) => {
     setShowVoice(false);
-    setFileName("voice-intake.wav");
-    setWorkOrderId(wo.id);
-    setView("invoice-flow");
+    openFlow(wo.id, "inbound", "voice-intake.wav");
   };
 
   const backToDashboard = () => {
@@ -58,30 +80,40 @@ export default function App() {
         <div className="mx-auto w-full max-w-[1100px] px-5 sm:px-8 lg:px-12 py-8 lg:py-10">
           {view === "dashboard" ? (
             <>
-              {/* Page label — quiet, not competing with content below */}
               <p className="mb-6 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
                 Dashboard
               </p>
 
               <div className="flex flex-col gap-8">
-                {/* Primary focal point — things that need action right now */}
                 <NeedsYou
-                  onApprove={() => openFlow(null, "invoice")}
-                  onView={() => openFlow(null, "inbound")}
+                  onApprove={(id) => openFlow(id, "invoice")}
+                  onView={(id) => openFlow(id, "inbound")}
                 />
 
-                {/* Divider */}
                 <div className="h-px bg-[var(--color-hairline)]" />
 
-                {/* New intake — secondary, below the queue */}
                 <section>
                   <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
                     New work order
                   </p>
                   <DropZone onFile={startFlowWithFile} onText={startFlowWithText} loading={intakeLoading} />
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="h-px flex-1 bg-[var(--color-hairline)]" />
+                    <span className="text-[12.5px] text-[var(--color-ink-3)]">or</span>
+                    <div className="h-px flex-1 bg-[var(--color-hairline)]" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowVoice(true)}
+                    className="mt-3 flex w-full items-center justify-center gap-2.5 rounded-[10px] border border-[var(--color-hairline)] bg-white py-4 text-[14px] font-medium text-[var(--color-ink)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-tint)]"
+                  >
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-accent-tint)] text-[var(--color-accent)]">
+                      <Mic size={16} strokeWidth={2} />
+                    </span>
+                    Describe the work order by voice
+                  </button>
                 </section>
 
-                {/* Work order history with its own filter */}
                 <section>
                   <SearchBar
                     onSelect={(r: SearchResult) => {
@@ -94,29 +126,6 @@ export default function App() {
                     />
                   </div>
                 </section>
-
-              <div className="flex flex-col gap-7">
-                <div className="flex flex-col gap-3">
-                  <DropZone onFile={startFlowWithFile} />
-                  <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-[var(--color-hairline)]" />
-                    <span className="text-[12.5px] text-[var(--color-ink-3)]">or</span>
-                    <div className="h-px flex-1 bg-[var(--color-hairline)]" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowVoice(true)}
-                    className="flex w-full items-center justify-center gap-2.5 rounded-[10px] border border-[var(--color-hairline)] bg-white py-4 text-[14px] font-medium text-[var(--color-ink)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] hover:bg-[var(--color-accent-tint)]"
-                  >
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[var(--color-accent-tint)] text-[var(--color-accent)]">
-                      <Mic size={16} strokeWidth={2} />
-                    </span>
-                    Describe the work order by voice
-                  </button>
-                </div>
-                <SearchBar />
-                <NeedsYou />
-                <Clients />
               </div>
             </>
           ) : (
