@@ -9,8 +9,6 @@ import {
   Send,
   Plus,
   RotateCcw,
-  Calendar,
-  Clock,
   Wrench,
   ChevronLeft,
   ChevronRight,
@@ -19,6 +17,8 @@ import {
 import BrandedInvoice from "./BrandedInvoice";
 import PricingView from "./PricingView";
 import InboundPartsView from "./InboundPartsView";
+import ScheduleStep from "./ScheduleStep";
+import ArmorIQGate from "./ArmorIQGate";
 import { getWorkOrder, approveStage } from "../../api/client";
 import type { WorkOrder } from "../../api/client";
 
@@ -457,175 +457,7 @@ function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, po
   );
 }
 
-/* ============================================================
-   Step 2 — SCHEDULE
-   ============================================================ */
-interface Step2Props {
-  onNext: () => void;
-  onBack?: () => void;
-  wo: WorkOrder | null;
-  approving: boolean;
-}
-
-const MOCK_SLOTS = [
-  { id: "tue", label: "Tue · 9:00 AM" },
-  { id: "wed", label: "Wed · 11:00 AM" },
-  { id: "thu", label: "Thu · 2:00 PM" },
-];
-
-function Step2Schedule({ onNext, onBack, wo, approving }: Step2Props) {
-  const schedule = wo?.schedule;
-
-  const slots = useMemo(() => {
-    if (schedule?.proposed_times?.length) {
-      return schedule.proposed_times.map((t, i) => {
-        let label = t;
-        try {
-          const d = new Date(t);
-          if (!isNaN(d.getTime())) {
-            const day = d.toLocaleDateString("en-US", { weekday: "short" });
-            const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-            label = `${day} · ${time}`;
-          }
-        } catch { /* keep raw */ }
-        return { id: `slot-${i}`, label };
-      });
-    }
-    return MOCK_SLOTS;
-  }, [schedule?.proposed_times]);
-
-  const defaultId = slots[1]?.id ?? slots[0]?.id ?? "";
-  const [selected, setSelected] = useState<string>(defaultId);
-
-  // Re-sync when slots arrive from backend
-  useEffect(() => {
-    setSelected(slots[1]?.id ?? slots[0]?.id ?? "");
-  }, [slots]);
-
-  const chosen = slots.find((s) => s.id === selected) ?? slots[0];
-
-  // Outreach draft — backend returns {message, channel} from scheduling agent
-  const draft = schedule?.outreach_draft as
-    | { message?: string; channel?: string; to?: string; recipient?: string; subject?: string; body?: string; content?: string }
-    | undefined;
-  const draftTo = draft?.to ?? draft?.recipient;
-  const draftSubject = draft?.subject;
-  const draftBody = draft?.message ?? draft?.body ?? draft?.content;
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <div className="font-display text-[18px] font-semibold tracking-tight text-[var(--color-ink)]">
-          Schedule the visit
-        </div>
-        {wo?.id ? <span className="num text-[13px] text-[var(--color-ink-3)]">· {wo.id.slice(0, 8).toUpperCase()}</span> : null}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.2fr]">
-        <div className="rounded-[10px] border border-[var(--color-hairline)] bg-white p-4">
-          <div className="mb-3 flex items-center gap-2 text-[13.5px] font-medium text-[var(--color-ink)]">
-            <Calendar size={14} strokeWidth={2} className="text-[var(--color-ink-2)]" />
-            Proposed times
-          </div>
-          <div className="flex flex-col gap-2">
-            {slots.map((s) => {
-              const active = selected === s.id;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setSelected(s.id)}
-                  className={
-                    "flex items-center gap-2 rounded-[8px] border px-3 h-10 text-left text-[13.5px] transition-colors " +
-                    (active
-                      ? "border-[var(--color-accent)] bg-[var(--color-accent-tint)] text-[var(--color-accent)] font-medium"
-                      : "border-[var(--color-hairline)] bg-white text-[var(--color-ink)] hover:bg-[#fafbfd]")
-                  }
-                >
-                  <Clock size={13} strokeWidth={2} className="opacity-80" />
-                  <span className="num flex-1">{s.label}</span>
-                  {active ? <Check size={13} strokeWidth={2.5} /> : null}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-[12.5px] text-[var(--color-ink-3)]">
-            {schedule?.proposed_times?.length
-              ? "Times proposed by the scheduling agent."
-              : "The agent suggests these based on Ray's calendar."}
-          </p>
-        </div>
-
-        <div className="rounded-[10px] border border-[var(--color-hairline)] bg-white">
-          <div className="flex items-center justify-between border-b border-[var(--color-hairline)] px-4 py-3">
-            <div className="flex items-center gap-2">
-              <span className="grid h-6 w-6 place-items-center rounded-[6px] bg-[#f7f8fa] text-[var(--color-ink-2)]">
-                <Mail size={13} strokeWidth={1.75} />
-              </span>
-              <span className="text-[13.5px] font-medium text-[var(--color-ink)]">
-                Outreach draft{" "}
-                <span className="text-[var(--color-ink-3)]">
-                  · via {draft?.channel ?? "email"}
-                </span>
-              </span>
-            </div>
-            <span className="text-[11.5px] uppercase tracking-wide text-[var(--color-ink-3)]">
-              Draft
-            </span>
-          </div>
-          <div className="flex flex-col gap-2 px-4 py-4 text-[13.5px]">
-            {draftTo ? (
-              <div className="flex gap-2">
-                <span className="w-14 shrink-0 text-[var(--color-ink-3)]">To</span>
-                <span className="text-[var(--color-ink)]">{draftTo}</span>
-              </div>
-            ) : null}
-            {draftSubject ? (
-              <div className="flex gap-2">
-                <span className="w-14 shrink-0 text-[var(--color-ink-3)]">Subject</span>
-                <span className="text-[var(--color-ink)]">{draftSubject}</span>
-              </div>
-            ) : null}
-            <div className={`${draftTo || draftSubject ? "mt-2 border-t border-[var(--color-hairline)] pt-3" : ""} text-[var(--color-ink-2)] leading-relaxed whitespace-pre-wrap`}>
-              {draftBody ?? (
-                <>
-                  Hi — we'd like to come out{" "}
-                  <span className="num text-[var(--color-ink)]">{chosen?.label}</span> for the
-                  scheduled visit. Reply if that time doesn't work and we'll find another.
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        {onBack ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-1 text-[13px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
-          >
-            <ChevronLeft size={14} strokeWidth={2} />
-            Back to Inbound
-          </button>
-        ) : <span />}
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={approving}
-          className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {approving ? (
-            <Loader2 size={13} strokeWidth={2} className="animate-spin" />
-          ) : null}
-          Approve &amp; send
-          {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
-        </button>
-      </div>
-    </div>
-  );
-}
+/* Step 2 — delegated to ScheduleStep (see ScheduleStep.tsx) */
 
 /* ============================================================
    Step 3 — POST-JOB READING (email + voice note)
@@ -1087,28 +919,36 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
           <span className="text-[var(--color-ink)] font-medium">Opens your email app; you control when it sends.</span>
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSend}
-            className={
-              "inline-flex items-center gap-1.5 rounded-[8px] px-3.5 h-9 text-[13px] font-medium transition-colors " +
-              (opened
-                ? "bg-[var(--color-sent-tint)] text-[var(--color-sent-ink)]"
-                : "bg-[var(--color-accent)] text-white hover:bg-[#1d4fd1]")
-            }
+          <ArmorIQGate
+            action={{ type: "send-invoice", invoiceId: invoiceLabel, amount: total }}
+            onAllow={handleSend}
           >
-            {opened ? (
-              <>
-                <Check size={13} strokeWidth={2.5} />
-                Opened in Mail
-              </>
-            ) : (
-              <>
-                <Send size={13} strokeWidth={2} />
-                Send invoice{clientName ? ` to ${clientName}` : ""}
-              </>
+            {(check) => (
+              <button
+                type="button"
+                disabled={opened}
+                onClick={check}
+                className={
+                  "inline-flex items-center gap-1.5 rounded-[8px] px-3.5 h-9 text-[13px] font-medium transition-colors " +
+                  (opened
+                    ? "bg-[var(--color-sent-tint)] text-[var(--color-sent-ink)] cursor-default"
+                    : "bg-[var(--color-accent)] text-white hover:bg-[#1d4fd1]")
+                }
+              >
+                {opened ? (
+                  <>
+                    <Check size={13} strokeWidth={2.5} />
+                    Sent
+                  </>
+                ) : (
+                  <>
+                    <Send size={13} strokeWidth={2} />
+                    Send to Maplewood
+                  </>
+                )}
+              </button>
             )}
-          </button>
+          </ArmorIQGate>
           <button
             type="button"
             onClick={onReset}
@@ -1299,7 +1139,7 @@ export default function WorkOrderToInvoiceFlow({
           pollError={pollError}
         />
       ) : step === "schedule" ? (
-        <Step2Schedule
+        <ScheduleStep
           onNext={() => advance("scheduling", "postjob")}
           onBack={() => setStep("inbound")}
           wo={wo}
