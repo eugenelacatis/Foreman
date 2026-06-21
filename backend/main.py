@@ -10,7 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
+from backend.api.orkes_routes import orkes_router
 from backend.api.routes import router
+from backend.orkes.agentspan_foreman import shutdown as agentspan_shutdown
 from backend.state.redis_client import close_redis, init_redis, _client
 
 sentry_sdk.init(
@@ -27,6 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_redis()
     await _client().ping()
     yield
+    await agentspan_shutdown()
     await close_redis()
 
 
@@ -41,6 +44,7 @@ app.add_middleware(
 )
 
 app.include_router(router)
+app.include_router(orkes_router)
 
 
 @app.get("/health")
