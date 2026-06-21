@@ -8,11 +8,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-tracer_provider = register(
-    project_name="foreman-ai",
-    endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"),
-)
-AnthropicInstrumentor().instrument(tracer_provider=tracer_provider)
+logger = logging.getLogger(__name__)
+
+try:
+    from openinference.instrumentation.anthropic import AnthropicInstrumentor
+    from phoenix.otel import register
+
+    tracer_provider = register(
+        project_name="foreman-ai",
+        endpoint=os.getenv(
+            "PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"
+        ),
+    )
+    AnthropicInstrumentor().instrument(tracer_provider=tracer_provider)
+    logger.info("Phoenix tracing enabled")
+except Exception as _phoenix_err:
+    logger.warning("Phoenix tracing unavailable: %s", _phoenix_err)
 
 client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
