@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { DragEvent as ReactDragEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { ChevronRight, FileText, UploadCloud } from "lucide-react";
+import { ChevronRight, FileText, Loader2, UploadCloud } from "lucide-react";
 
 const ACCEPT = ".pdf,.txt,.eml,.png,.jpg,.jpeg,.m4a,.mp3";
 
@@ -9,9 +9,10 @@ type InputMode = "upload" | "paste";
 interface DropZoneProps {
   onFile?: (file: File) => void;
   onText?: (text: string) => void;
+  loading?: boolean;
 }
 
-export default function DropZone({ onFile, onText }: DropZoneProps) {
+export default function DropZone({ onFile, onText, loading = false }: DropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const dragCount = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -84,54 +85,68 @@ export default function DropZone({ onFile, onText }: DropZoneProps) {
 
       {mode === "upload" ? (
         <div
-          role="button"
-          tabIndex={0}
-          onClick={openPicker}
-          onKeyDown={onKeyDown}
-          onDragEnter={onDragEnter}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
+          role={loading ? undefined : "button"}
+          tabIndex={loading ? undefined : 0}
+          onClick={loading ? undefined : openPicker}
+          onKeyDown={loading ? undefined : onKeyDown}
+          onDragEnter={loading ? undefined : onDragEnter}
+          onDragOver={loading ? undefined : onDragOver}
+          onDragLeave={loading ? undefined : onDragLeave}
+          onDrop={loading ? undefined : onDrop}
           aria-label="Drop emails, call transcripts, or voice notes — or click to browse"
           className={
-            "group flex w-full cursor-pointer flex-col items-center justify-center gap-2 py-8 text-center transition-colors outline-none focus-visible:bg-[var(--color-accent-tint)] " +
-            (isDragging
-              ? "bg-[var(--color-accent-tint)]"
-              : "hover:bg-[#fafbfd]")
+            "group flex w-full flex-col items-center justify-center gap-2 py-8 text-center transition-colors outline-none " +
+            (loading
+              ? "cursor-default"
+              : "cursor-pointer focus-visible:bg-[var(--color-accent-tint)] " +
+                (isDragging ? "bg-[var(--color-accent-tint)]" : "hover:bg-[#fafbfd]"))
           }
         >
-          <span
-            className={
-              "grid h-9 w-9 place-items-center rounded-full transition-colors " +
-              (isDragging
-                ? "bg-[var(--color-accent-tint)] text-[var(--color-accent)]"
-                : "bg-[#f7f8fa] text-[var(--color-ink-3)] group-hover:text-[var(--color-ink-2)]")
-            }
-          >
-            <UploadCloud size={18} strokeWidth={1.75} />
-          </span>
-          <p className="text-[13.5px] text-[var(--color-ink-2)]">
-            {isDragging
-              ? "Drop to start the work order"
-              : "Drop emails, call transcripts, or voice notes"}
-          </p>
-          {!isDragging ? (
-            <p className="text-[12.5px] text-[var(--color-ink-3)]">
-              or click to browse · PDF, TXT, EML, audio
-            </p>
-          ) : null}
+          {loading ? (
+            <>
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-[#f7f8fa] text-[var(--color-accent)]">
+                <Loader2 size={18} strokeWidth={1.75} className="animate-spin" />
+              </span>
+              <p className="text-[13.5px] text-[var(--color-ink-2)]">Processing…</p>
+            </>
+          ) : (
+            <>
+              <span
+                className={
+                  "grid h-9 w-9 place-items-center rounded-full transition-colors " +
+                  (isDragging
+                    ? "bg-[var(--color-accent-tint)] text-[var(--color-accent)]"
+                    : "bg-[#f7f8fa] text-[var(--color-ink-3)] group-hover:text-[var(--color-ink-2)]")
+                }
+              >
+                <UploadCloud size={18} strokeWidth={1.75} />
+              </span>
+              <p className="text-[13.5px] text-[var(--color-ink-2)]">
+                {isDragging
+                  ? "Drop to start the work order"
+                  : "Drop emails, call transcripts, or voice notes"}
+              </p>
+              {!isDragging ? (
+                <p className="text-[12.5px] text-[var(--color-ink-3)]">
+                  or click to browse · PDF, TXT, EML, audio
+                </p>
+              ) : null}
+            </>
+          )}
 
-          <input
-            ref={inputRef}
-            type="file"
-            accept={ACCEPT}
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              handleFile(file);
-              e.target.value = "";
-            }}
-          />
+          {!loading && (
+            <input
+              ref={inputRef}
+              type="file"
+              accept={ACCEPT}
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                handleFile(file);
+                e.target.value = "";
+              }}
+            />
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-3 p-4">
@@ -142,7 +157,7 @@ export default function DropZone({ onFile, onText }: DropZoneProps) {
             rows={6}
             className="w-full resize-none rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] px-3 py-2.5 text-[13.5px] leading-relaxed text-[var(--color-ink)] placeholder:text-[var(--color-ink-3)] outline-none transition-colors focus:border-[var(--color-ink-3)] focus:bg-white"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmitText();
+              if (!loading && e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmitText();
             }}
           />
           <div className="flex items-center justify-between gap-3">
@@ -152,12 +167,21 @@ export default function DropZone({ onFile, onText }: DropZoneProps) {
             </span>
             <button
               type="button"
-              onClick={handleSubmitText}
-              disabled={!pasteText.trim()}
+              onClick={loading ? undefined : handleSubmitText}
+              disabled={!pasteText.trim() || loading}
               className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Start work order
-              <ChevronRight size={13} strokeWidth={2.25} />
+              {loading ? (
+                <>
+                  <Loader2 size={13} strokeWidth={2} className="animate-spin" />
+                  Processing…
+                </>
+              ) : (
+                <>
+                  Start work order
+                  <ChevronRight size={13} strokeWidth={2.25} />
+                </>
+              )}
             </button>
           </div>
         </div>

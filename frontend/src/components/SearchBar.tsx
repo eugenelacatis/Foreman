@@ -4,10 +4,13 @@ import type { LucideIcon } from "lucide-react";
 
 type ResultType = "client" | "invoice" | "workOrder";
 
-interface Result {
+export interface SearchResult {
   id: string;
   type: ResultType;
   title: string;
+}
+
+interface Result extends SearchResult {
   sub: string;
 }
 
@@ -33,10 +36,12 @@ const ALL_RESULTS: Result[] = [
 
 interface SearchBarProps {
   placeholder?: string;
+  onSelect?: (result: SearchResult) => void;
 }
 
 export default function SearchBar({
   placeholder = "Search clients, work orders, invoices…",
+  onSelect,
 }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -97,8 +102,9 @@ export default function SearchBar({
                       type="button"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        setQuery(r.title)
-                        setOpen(false)
+                        setQuery(r.title);
+                        setOpen(false);
+                        onSelect?.({ id: r.id, type: r.type, title: r.title });
                       }}
                       className="flex w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fafbfd]"
                     >

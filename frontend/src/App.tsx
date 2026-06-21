@@ -2,10 +2,12 @@ import { useState } from "react";
 import Sidebar from "./components/Sidebar";
 import DropZone from "./components/DropZone";
 import SearchBar from "./components/SearchBar";
+import type { SearchResult } from "./components/SearchBar";
 import NeedsYou from "./components/NeedsYou";
 import Clients from "./components/Clients";
 import WorkOrders from "./components/WorkOrders";
 import WorkOrderToInvoiceFlow from "./components/invoice-flow/WorkOrderToInvoiceFlow";
+import type { StepKey } from "./components/invoice-flow/WorkOrderToInvoiceFlow";
 import { createWorkOrder } from "./api/client";
 
 type View = "dashboard" | "invoice-flow";
@@ -14,9 +16,21 @@ export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [workOrderId, setWorkOrderId] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [initialStep, setInitialStep] = useState<StepKey>("inbound");
+  const [backendError, setBackendError] = useState<string | null>(null);
+  const [intakeLoading, setIntakeLoading] = useState(false);
+
+  const openFlow = (id: string | null, step: StepKey = "inbound", title?: string | null) => {
+    setWorkOrderId(id);
+    setFileName(title ?? null);
+    setInitialStep(step);
+    setBackendError(null);
+    setIntakeLoading(false);
+    setView("invoice-flow");
+  };
 
   const startFlowWithFile = async (file: File) => {
-    setFileName(file.name);
+    setIntakeLoading(true);
     let rawRequest: string;
     if (file.name.endsWith(".txt") || file.name.endsWith(".eml")) {
       rawRequest = await file.text().catch(() => file.name);
@@ -25,28 +39,29 @@ export default function App() {
     }
     try {
       const wo = await createWorkOrder(rawRequest);
-      setWorkOrderId(wo.id);
+      openFlow(wo.id, "inbound", file.name);
     } catch {
-      setWorkOrderId(null);
+      openFlow(null, "inbound", file.name);
+      setBackendError("Backend unavailable — running in demo mode with sample data.");
     }
-    setView("invoice-flow");
   };
 
   const startFlowWithText = async (text: string) => {
-    setFileName("manual entry");
+    setIntakeLoading(true);
     try {
       const wo = await createWorkOrder(text);
-      setWorkOrderId(wo.id);
+      openFlow(wo.id, "inbound", "manual entry");
     } catch {
-      setWorkOrderId(null);
+      openFlow(null, "inbound", "manual entry");
+      setBackendError("Backend unavailable — running in demo mode with sample data.");
     }
-    setView("invoice-flow");
   };
 
   const backToDashboard = () => {
     setView("dashboard");
     setWorkOrderId(null);
     setFileName(null);
+    setBackendError(null);
   };
 
   return (
@@ -64,7 +79,10 @@ export default function App() {
 
               <div className="flex flex-col gap-8">
                 {/* Primary focal point — things that need action right now */}
-                <NeedsYou />
+                <NeedsYou
+                  onApprove={() => openFlow(null, "invoice")}
+                  onView={() => openFlow(null, "inbound")}
+                />
 
                 {/* Divider */}
                 <div className="h-px bg-[var(--color-hairline)]" />
@@ -74,14 +92,20 @@ export default function App() {
                   <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
                     New work order
                   </p>
-                  <DropZone onFile={startFlowWithFile} onText={startFlowWithText} />
+                  <DropZone onFile={startFlowWithFile} onText={startFlowWithText} loading={intakeLoading} />
                 </section>
 
                 {/* Work order history with its own filter */}
                 <section>
-                  <SearchBar />
+                  <SearchBar
+                    onSelect={(r: SearchResult) => {
+                      if (r.type === "workOrder") openFlow(r.id, "inbound", r.title);
+                    }}
+                  />
                   <div className="mt-4">
-                    <WorkOrders onViewOrder={() => setView("invoice-flow")} />
+                    <WorkOrders
+                      onViewOrder={(row) => openFlow(row.id, "inbound", row.title)}
+                    />
                   </div>
                 </section>
 
@@ -90,7 +114,13 @@ export default function App() {
               </div>
             </>
           ) : (
-            <WorkOrderToInvoiceFlow onBack={backToDashboard} workOrderId={workOrderId} fileName={fileName} />
+            <WorkOrderToInvoiceFlow
+              onBack={backToDashboard}
+              workOrderId={workOrderId}
+              fileName={fileName}
+              initialStep={initialStep}
+              backendError={backendError}
+            />
           )}
         </div>
       </main>
