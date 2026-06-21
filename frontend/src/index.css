@@ -1,3 +1,115 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ============================================================
+   Fonts — Figtree (UI / body) + Quicksand (display / headings)
+   ============================================================ */
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/Figtree/Figtree-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/Figtree/Figtree-Italic-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Quicksand";
+  src: url("/fonts/Quicksand/Quicksand-VariableFont_wght.ttf") format("truetype-variations");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ============================================================
+   Design tokens
+   - shadcn theme vars stay intact for any shadcn primitives.
+   - The --color-* tokens drive the Foreman dashboard look.
+   ============================================================ */
+@layer base {
+  :root {
+    /* shadcn defaults (preserved from the scaffold) */
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 210 40% 98%;
+    --ring: 215 20.2% 65.1%;
+    --radius: 0.5rem;
+
+    /* Foreman dashboard tokens */
+    --color-surface: #ffffff;
+    --color-ink: #16191f;
+    --color-ink-2: #5b6573;
+    --color-ink-3: #9aa3af;
+    --color-hairline: #edeff3;
+
+    --color-accent: #2563eb;
+    --color-accent-tint: #eef3ff;
+    --color-accent-hover: #1d4fd1;
+    /* pre-mixed opacities (Tailwind v3 can't compute opacity on a CSS-var color) */
+    --color-accent-15: rgba(37, 99, 235, 0.15);
+    --color-accent-25: rgba(37, 99, 235, 0.25);
+    --color-accent-40: rgba(37, 99, 235, 0.4);
+    --color-accent-50: rgba(37, 99, 235, 0.5);
+
+    --color-sent-ink: #15803d;
+    --color-sent-tint: #ecfdf3;
+    --color-neutral-ink: #5b6573;
+    --color-neutral-tint: #f3f4f6;
+
+    --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Quicksand", "Figtree", ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Heading display font */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.005em;
+}
+
+/* Tabular monospace for money, counts, IDs, times */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}

@@ -14,7 +14,7 @@ export interface Classification {
 
 export interface Schedule {
   proposed_times: string[];
-  outreach_draft: string;
+  outreach_draft: Record<string, unknown>;
   parts_suggestion: Array<{
     name: string;
     price?: number;
@@ -23,14 +23,12 @@ export interface Schedule {
 }
 
 export interface Invoice {
-  line_items: Array<{
-    description: string;
-    amount: number;
-    [key: string]: unknown;
-  }>;
+  invoice_id?: string | null;
+  line_items: Array<Record<string, unknown>>;
   rates: Record<string, unknown>;
   template_filled: string | null;
   vendor_email_draft: string | null;
+  missing_fields?: string[];
 }
 
 export interface Approvals {
