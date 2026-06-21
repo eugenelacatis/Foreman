@@ -1,13 +1,25 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import sentry_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
 
 from backend.api.routes import router
 from backend.state.redis_client import close_redis, init_redis, _client
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    integrations=[StarletteIntegration(), FastApiIntegration()],
+    auto_enabling_integrations=False,
+    traces_sample_rate=0.0,
+    environment=os.getenv("ENV", "development"),
+)
 
 
 @asynccontextmanager
