@@ -31,7 +31,6 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
   const addMessage = (role: "agent" | "user", text: string) =>
     setMessages((m) => [...m, { role, text }]);
 
-  // Auto-scroll to bottom when messages update
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
@@ -63,10 +62,10 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
     };
 
     recorder.onstop = () => {
-      sendEndTurn();
+      setTimeout(() => sendEndTurn(), 300);
     };
 
-    recorder.start(100); // send chunks every 100ms
+    recorder.start(100);
     setIsRecording(true);
     setState("listening");
   }, [sendEndTurn]);
@@ -76,14 +75,8 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     audioRef.current = audio;
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      setState("listening");
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      setState("listening");
-    };
+    audio.onended = () => { URL.revokeObjectURL(url); setState("listening"); };
+    audio.onerror = () => { URL.revokeObjectURL(url); setState("listening"); };
     setState("speaking");
     audio.play().catch(() => setState("listening"));
   }, []);
@@ -92,20 +85,15 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
     let cancelled = false;
 
     const connect = async () => {
-      // Get mic access first
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
       } catch {
-        if (!cancelled) {
-          setErrorMsg("Microphone access denied.");
-          setState("error");
-        }
+        if (!cancelled) { setErrorMsg("Microphone access denied."); setState("error"); }
         return;
       }
 
-      // Connect WebSocket through Vite proxy
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
       const ws = new WebSocket(`${protocol}//${window.location.host}/ws/work-orders/voice`);
       wsRef.current = ws;
@@ -119,37 +107,25 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
 
       ws.onmessage = (event) => {
         if (cancelled) return;
-
-        // Binary frame = TTS audio
         if (event.data instanceof ArrayBuffer) {
-          if (pendingAudioRef.current) {
-            pendingAudioRef.current = false;
-            playAudio(event.data);
-          }
+          if (pendingAudioRef.current) { pendingAudioRef.current = false; playAudio(event.data); }
           return;
         }
-
         let msg: Record<string, unknown>;
-        try { msg = JSON.parse(event.data as string); }
-        catch { return; }
-
+        try { msg = JSON.parse(event.data as string); } catch { return; }
         const ev = msg.event as string;
-
         if (ev === "transcript") {
           addMessage("user", msg.text as string);
+        } else if (ev === "retry") {
+          addMessage("agent", msg.text as string);
+          setState("listening");
         } else if (ev === "question") {
           addMessage("agent", msg.text as string);
-          if (msg.has_audio) {
-            pendingAudioRef.current = true;
-            // Audio binary frame follows — playAudio called when it arrives
-          } else {
-            setState("listening");
-          }
+          if (msg.has_audio) { pendingAudioRef.current = true; } else { setState("listening"); }
         } else if (ev === "complete") {
           doneRef.current = true;
           setState("done");
-          const wo = msg.work_order as WorkOrder;
-          setTimeout(() => onComplete(wo), 800);
+          setTimeout(() => onComplete(msg.work_order as WorkOrder), 800);
         } else if (ev === "error") {
           setErrorMsg(msg.text as string ?? "Voice session error.");
           setState("error");
@@ -157,10 +133,7 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
       };
 
       ws.onerror = () => {
-        if (!cancelled) {
-          setErrorMsg("Could not connect to voice server.");
-          setState("error");
-        }
+        if (!cancelled) { setErrorMsg("Could not connect to voice server."); setState("error"); }
       };
 
       ws.onclose = () => {
@@ -178,20 +151,11 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       audioRef.current?.pause();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMicClick = () => {
-    if (isRecording) {
-      stopRecording();
-    } else if (state === "listening") {
-      startRecording();
-    }
-  };
-
-  const handleClose = () => {
-    wsRef.current?.send(JSON.stringify({ event: "done" }));
-    onClose();
+    if (isRecording) { stopRecording(); }
+    else if (state === "listening") { startRecording(); }
   };
 
   const stateLabel: Record<SessionState, string> = {
@@ -206,7 +170,6 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center">
       <div className="w-full max-w-lg rounded-t-[20px] bg-white sm:rounded-[20px] shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "85vh" }}>
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--color-hairline)] px-5 py-4">
           <div className="flex items-center gap-2.5">
             <span className="grid h-7 w-7 place-items-center rounded-full bg-[var(--color-accent-tint)] text-[var(--color-accent)]">
@@ -214,27 +177,18 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
             </span>
             <span className="text-[14px] font-semibold text-[var(--color-ink)]">Voice intake</span>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="grid h-7 w-7 place-items-center rounded-full text-[var(--color-ink-3)] hover:bg-[#f1f3f7] hover:text-[var(--color-ink)]"
-          >
+          <button type="button" onClick={onClose} className="grid h-7 w-7 place-items-center rounded-full text-[var(--color-ink-3)] hover:bg-[#f1f3f7]">
             <X size={15} strokeWidth={2} />
           </button>
         </div>
 
-        {/* Conversation */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3 min-h-0">
           {messages.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={
-                  "max-w-[80%] rounded-[12px] px-3.5 py-2.5 text-[13.5px] leading-relaxed " +
-                  (m.role === "user"
-                    ? "bg-[var(--color-accent)] text-white"
-                    : "bg-[#f1f3f7] text-[var(--color-ink)]")
-                }
-              >
+              <div className={
+                "max-w-[80%] rounded-[12px] px-3.5 py-2.5 text-[13.5px] leading-relaxed " +
+                (m.role === "user" ? "bg-[var(--color-accent)] text-white" : "bg-[#f1f3f7] text-[var(--color-ink)]")
+              }>
                 {m.text}
               </div>
             </div>
@@ -249,41 +203,30 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
           )}
         </div>
 
-        {/* Controls */}
         <div className="border-t border-[var(--color-hairline)] px-5 py-4 flex flex-col items-center gap-3">
           <p className="text-[12.5px] text-[var(--color-ink-3)]">{stateLabel[state]}</p>
-
           {state === "error" ? (
-            <button
-              type="button"
-              onClick={handleClose}
-              className="rounded-[8px] border border-[var(--color-hairline)] px-4 h-9 text-[13px] text-[var(--color-ink)] hover:bg-[#f1f3f7]"
-            >
+            <button type="button" onClick={onClose} className="rounded-[8px] border border-[var(--color-hairline)] px-4 h-9 text-[13px] text-[var(--color-ink)] hover:bg-[#f1f3f7]">
               Close
             </button>
           ) : state === "done" ? (
-            <span className="grid h-14 w-14 place-items-center rounded-full bg-[var(--color-sent-tink)] text-[var(--color-sent-ink)]">
+            <span className="grid h-14 w-14 place-items-center rounded-full bg-green-100 text-green-600">
               <Check size={24} strokeWidth={2.5} />
             </span>
           ) : (
             <button
               type="button"
-              onMouseDown={handleMicClick}
+              onClick={handleMicClick}
               disabled={state === "connecting" || state === "processing" || state === "speaking"}
               className={
                 "grid h-14 w-14 place-items-center rounded-full transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed " +
-                (isRecording
-                  ? "bg-red-500 text-white scale-110 ring-4 ring-red-300"
-                  : "bg-[var(--color-accent)] text-white hover:bg-[#1d4fd1]")
+                (isRecording ? "bg-red-500 text-white scale-110 ring-4 ring-red-300" : "bg-[var(--color-accent)] text-white hover:bg-[#1d4fd1]")
               }
             >
               {isRecording ? <MicOff size={22} strokeWidth={2} /> : <Mic size={22} strokeWidth={2} />}
             </button>
           )}
-
-          {isRecording && (
-            <p className="text-[12px] text-red-500 font-medium animate-pulse">Recording — click to send turn</p>
-          )}
+          {isRecording && <p className="text-[12px] text-red-500 font-medium animate-pulse">Recording — click to send turn</p>}
         </div>
       </div>
     </div>

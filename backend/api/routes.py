@@ -4,7 +4,9 @@ import json
 import logging
 import uuid
 
-from fastapi import APIRouter, Body, HTTPException, WebSocket, WebSocketDisconnect
+import httpx
+import os
+from fastapi import APIRouter, Body, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from opentelemetry import trace
 
 import sentry_sdk
@@ -152,6 +154,62 @@ async def armoriq_check(id: str, action: str = Body(..., embed=True)) -> dict:
     return result
 
 
+@router.post("/voice-turn")
+async def voice_turn(
+    audio: UploadFile = File(...),
+    work_order_id: str | None = Form(None),
+) -> dict:
+    """Single voice turn: transcribe audio, run intake, return question or complete."""
+    data = await audio.read()
+
+    # Transcribe via Deepgram pre-recorded API
+    dg_key = os.getenv("DEEPGRAM_API_KEY", "")
+    transcript = ""
+    if dg_key and data:
+        try:
+            async with httpx.AsyncClient(timeout=30) as http:
+                resp = await http.post(
+                    "https://api.deepgram.com/v1/listen?model=nova-2&punctuate=true&smart_format=true",
+                    headers={"Authorization": f"Token {dg_key}", "Content-Type": "audio/webm"},
+                    content=data,
+                )
+                resp.raise_for_status()
+                transcript = (
+                    resp.json()
+                    .get("results", {})
+                    .get("channels", [{}])[0]
+                    .get("alternatives", [{}])[0]
+                    .get("transcript", "")
+                    .strip()
+                )
+        except Exception as e:
+            logger.warning("Deepgram pre-recorded failed: %s", e)
+
+    logger.warning("voice-turn: audio=%d bytes, transcript=%r", len(data), transcript)
+    if not transcript:
+        return {"status": "retry", "question": "I didn't catch that. Please try again."}
+
+    # Load or create work order
+    wo: WorkOrder
+    if work_order_id:
+        existing = await get_work_order(work_order_id)
+        wo = existing if existing is not None else WorkOrder(id=str(uuid.uuid4()), raw_request="")
+    else:
+        wo = WorkOrder(id=str(uuid.uuid4()), raw_request="")
+
+    wo.raw_request = (wo.raw_request + " " + transcript).strip()
+    wo = await _run_intake_stage(wo)
+    await save_work_order(wo)
+
+    flags = wo.classification.completeness_flags if wo.classification else []
+    question = question_for_flags(flags)
+
+    if question is None:
+        return {"status": "complete", "transcript": transcript, "work_order": wo.model_dump(mode="json")}
+
+    return {"status": "question", "transcript": transcript, "question": question, "work_order_id": wo.id}
+
+
 async def _send_json(ws: WebSocket, payload: dict) -> None:
     await ws.send_text(json.dumps(payload))
 
@@ -186,12 +244,17 @@ async def voice_intake(ws: WebSocket) -> None:
                 # --- collect one turn of audio until the client signals end_turn ---
                 async with LiveTranscriber() as stt:
                     ended = False
+                    audio_bytes = 0
+                    chunk_count = 0
                     while True:
                         msg = await ws.receive()
                         if msg.get("type") == "websocket.disconnect":
                             return
                         if msg.get("bytes") is not None:
-                            await stt.send(msg["bytes"])
+                            chunk = msg["bytes"]
+                            chunk_count += 1
+                            audio_bytes += len(chunk)
+                            await stt.send(chunk)
                             continue
                         text = msg.get("text")
                         if text is None:
@@ -205,9 +268,16 @@ async def voice_intake(ws: WebSocket) -> None:
                         if event == "end_turn":
                             ended = True
                             break
+                    logger.warning("voice turn: %d chunks, %d bytes total", chunk_count, audio_bytes)
                     if not ended:
                         return
                     transcript = await stt.finish()
+
+                # skip empty transcripts — let the user try again without closing the session
+                if not transcript.strip():
+                    logger.warning("voice turn produced empty transcript — asking user to retry")
+                    await _send_json(ws, {"event": "retry", "text": "I didn't catch that, can you please repeat?"})
+                    continue
 
                 # --- merge the turn into raw_request and re-run intake ---
                 wo.raw_request = (wo.raw_request + " " + transcript).strip()
