@@ -105,56 +105,183 @@ const ANTICIPATED_PARTS: PartNeed[] = [
    POST /api/parts/local { parts, location } → LocalPartsData
    ============================================================ */
 const MOCK_LOCAL_PARTS: LocalPartsData = {
-  jobSite: { svgX: 220, svgY: 130, lat: 40.7128, lng: -74.0060 },
+  jobSite: { svgX: 220, svgY: 130, lat: 40.7128, lng: -74.006 },
   suppliers: [
     {
-      id: "s1", name: "ARS Supply Co.", shortName: "ARS",
-      address: "88 Industrial Dr", distanceMi: 0.8,
-      svgX: 90, svgY: 66, lat: 40.7190, lng: -74.0160,
-      openNow: true, isMyAccount: true, isPreferred: true,
+      id: "s1",
+      name: "ARS Supply Co.",
+      shortName: "ARS",
+      address: "88 Industrial Dr",
+      distanceMi: 0.8,
+      svgX: 90,
+      svgY: 66,
+      lat: 40.719,
+      lng: -74.016,
+      openNow: true,
+      isMyAccount: true,
+      isPreferred: true,
     },
     {
-      id: "s2", name: "Johnstone Supply", shortName: "Johnstone",
-      address: "210 Commerce Blvd", distanceMi: 1.4,
-      svgX: 346, svgY: 72, lat: 40.7100, lng: -73.9960,
-      openNow: true, isMyAccount: true, isPreferred: false,
+      id: "s2",
+      name: "Johnstone Supply",
+      shortName: "Johnstone",
+      address: "210 Commerce Blvd",
+      distanceMi: 1.4,
+      svgX: 346,
+      svgY: 72,
+      lat: 40.71,
+      lng: -73.996,
+      openNow: true,
+      isMyAccount: true,
+      isPreferred: false,
     },
     {
-      id: "s3", name: "HVAC City", shortName: "HVAC City",
-      address: "5 Depot St", distanceMi: 2.1,
-      svgX: 314, svgY: 198, lat: 40.6960, lng: -74.0080,
-      openNow: true, isMyAccount: false, isPreferred: false,
+      id: "s3",
+      name: "HVAC City",
+      shortName: "HVAC City",
+      address: "5 Depot St",
+      distanceMi: 2.1,
+      svgX: 314,
+      svgY: 198,
+      lat: 40.696,
+      lng: -74.008,
+      openNow: true,
+      isMyAccount: false,
+      isPreferred: false,
     },
     {
-      id: "s4", name: "Arctic Air Parts", shortName: "Arctic Air",
-      address: "800 Cold Spring Rd", distanceMi: 3.5,
-      svgX: 66, svgY: 196, lat: 40.7340, lng: -74.0300,
-      openNow: false, isMyAccount: false, isPreferred: true,
+      id: "s4",
+      name: "Arctic Air Parts",
+      shortName: "Arctic Air",
+      address: "800 Cold Spring Rd",
+      distanceMi: 3.5,
+      svgX: 66,
+      svgY: 196,
+      lat: 40.734,
+      lng: -74.03,
+      openNow: false,
+      isMyAccount: false,
+      isPreferred: true,
     },
   ],
   listingsByPart: {
     cap: [
-      { supplierId: "s4", price: 27.00, inStock: true, stockQty: 4, pickupReady: false, openNow: false },
-      { supplierId: "s1", price: 28.50, inStock: true, stockQty: 6, pickupReady: true, openNow: true },
-      { supplierId: "s2", price: 31.00, inStock: true, stockQty: 12, pickupReady: true, openNow: true },
+      {
+        supplierId: "s4",
+        price: 27.0,
+        inStock: true,
+        stockQty: 4,
+        pickupReady: false,
+        openNow: false,
+      },
+      {
+        supplierId: "s1",
+        price: 28.5,
+        inStock: true,
+        stockQty: 6,
+        pickupReady: true,
+        openNow: true,
+      },
+      {
+        supplierId: "s2",
+        price: 31.0,
+        inStock: true,
+        stockQty: 12,
+        pickupReady: true,
+        openNow: true,
+      },
     ],
     con: [
-      { supplierId: "s2", price: 18.50, inStock: true, stockQty: 8, pickupReady: true, openNow: true },
-      { supplierId: "s3", price: 19.75, inStock: true, stockQty: 5, pickupReady: false, openNow: true },
-      { supplierId: "s1", price: 21.00, inStock: true, stockQty: 3, pickupReady: true, openNow: true },
+      {
+        supplierId: "s2",
+        price: 18.5,
+        inStock: true,
+        stockQty: 8,
+        pickupReady: true,
+        openNow: true,
+      },
+      {
+        supplierId: "s3",
+        price: 19.75,
+        inStock: true,
+        stockQty: 5,
+        pickupReady: false,
+        openNow: true,
+      },
+      {
+        supplierId: "s1",
+        price: 21.0,
+        inStock: true,
+        stockQty: 3,
+        pickupReady: true,
+        openNow: true,
+      },
     ],
     ref: [
-      { supplierId: "s4", price: 21.00, inStock: true, stockQty: 8, pickupReady: false, openNow: false },
-      { supplierId: "s3", price: 22.50, inStock: true, stockQty: 10, pickupReady: false, openNow: true },
-      { supplierId: "s2", price: 24.00, inStock: true, stockQty: 20, pickupReady: true, openNow: true },
+      {
+        supplierId: "s4",
+        price: 21.0,
+        inStock: true,
+        stockQty: 8,
+        pickupReady: false,
+        openNow: false,
+      },
+      {
+        supplierId: "s3",
+        price: 22.5,
+        inStock: true,
+        stockQty: 10,
+        pickupReady: false,
+        openNow: true,
+      },
+      {
+        supplierId: "s2",
+        price: 24.0,
+        inStock: true,
+        stockQty: 20,
+        pickupReady: true,
+        openNow: true,
+      },
     ],
   },
 };
 
-async function getLocalParts(_parts: PartNeed[], _location: string): Promise<LocalPartsData> {
-  // TODO: replace with POST /api/parts/local { parts, location }
+async function getLocalParts(
+  parts: PartNeed[],
+  _location: string,
+): Promise<LocalPartsData> {
   await new Promise<void>((r) => setTimeout(r, 700));
-  return MOCK_LOCAL_PARTS;
+  if (parts === ANTICIPATED_PARTS) return MOCK_LOCAL_PARTS;
+  const listingsByPart: Record<string, Listing[]> = {};
+  parts.forEach((part) => {
+    listingsByPart[part.id] = [
+      {
+        supplierId: "s1",
+        price: 0,
+        inStock: true,
+        stockQty: 6,
+        pickupReady: true,
+        openNow: true,
+      },
+      {
+        supplierId: "s2",
+        price: 0,
+        inStock: true,
+        stockQty: 12,
+        pickupReady: true,
+        openNow: true,
+      },
+      {
+        supplierId: "s3",
+        price: 0,
+        inStock: true,
+        stockQty: 5,
+        pickupReady: false,
+        openNow: true,
+      },
+    ];
+  });
+  return { ...MOCK_LOCAL_PARTS, listingsByPart };
 }
 
 /* ============================================================
@@ -180,7 +307,10 @@ async function prepareCheckout(
    ============================================================ */
 const fmtMoney = (n: number) =>
   "$" +
-  n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const fmtDist = (mi: number) => `${mi} mi`;
 
@@ -246,7 +376,12 @@ function computeStrategies(
       });
     }
     const o = cheapMap.get(best.supplierId)!;
-    o.lines.push({ partId: part.id, partName: part.name, qty: part.qty, price: best.price });
+    o.lines.push({
+      partId: part.id,
+      partName: part.name,
+      qty: part.qty,
+      price: best.price,
+    });
     o.subtotal += best.price * part.qty;
   }
 
@@ -259,7 +394,9 @@ function computeStrategies(
     let bestCov = 0;
     for (const s of suppliers) {
       const cov = [...remaining.keys()].filter((pid) =>
-        (listingsByPart[pid] ?? []).some((l) => l.supplierId === s.id && l.inStock),
+        (listingsByPart[pid] ?? []).some(
+          (l) => l.supplierId === s.id && l.inStock,
+        ),
       ).length;
       if (cov > bestCov) {
         bestCov = cov;
@@ -293,8 +430,16 @@ function computeStrategies(
   }
 
   return {
-    cheapest: { total: cheapTotal, stops: cheapMap.size, stores: [...cheapMap.values()] },
-    fewestStops: { total: fewestTotal, stops: fewestStores.length, stores: fewestStores },
+    cheapest: {
+      total: cheapTotal,
+      stops: cheapMap.size,
+      stores: [...cheapMap.values()],
+    },
+    fewestStops: {
+      total: fewestTotal,
+      stops: fewestStores.length,
+      stores: fewestStores,
+    },
   };
 }
 
@@ -324,7 +469,8 @@ function Dropdown<T extends string | number>({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? String(value);
+  const selectedLabel =
+    options.find((o) => o.value === value)?.label ?? String(value);
 
   return (
     <div ref={ref} className="relative">
@@ -335,7 +481,11 @@ function Dropdown<T extends string | number>({
       >
         <span className="text-[var(--color-ink-3)]">{label}:</span>
         {selectedLabel}
-        <ChevronDown size={12} strokeWidth={2.5} className="text-[var(--color-ink-3)]" />
+        <ChevronDown
+          size={12}
+          strokeWidth={2.5}
+          className="text-[var(--color-ink-3)]"
+        />
       </button>
       {open && (
         <div className="absolute left-0 top-[calc(100%+4px)] z-20 min-w-[160px] overflow-hidden rounded-[8px] border border-[var(--color-hairline)] bg-white shadow-lg">
@@ -466,7 +616,11 @@ function MapCanvas({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapFlyController centerOn={centerOn} lat={jobSite.lat} lng={jobSite.lng} />
+        <MapFlyController
+          centerOn={centerOn}
+          lat={jobSite.lat}
+          lng={jobSite.lng}
+        />
 
         {/* Job site — red marker */}
         <Marker position={[jobSite.lat, jobSite.lng]} icon={_redIcon}>
@@ -478,7 +632,8 @@ function MapCanvas({
           const isSelected = s.id === selectedId;
           const isHovered = hoveredIds.has(s.id);
           const isInPlan = planIds.has(s.id);
-          const icon = isSelected || isHovered || isInPlan ? _bluePlanIcon : _blueIcon;
+          const icon =
+            isSelected || isHovered || isInPlan ? _bluePlanIcon : _blueIcon;
           return (
             <Marker
               key={`${s.id}-${String(isSelected)}-${String(isInPlan)}-${String(isHovered)}`}
@@ -529,7 +684,9 @@ function PartCard({
           <span className="text-[13.5px] font-medium text-[var(--color-ink)]">
             {part.name}
           </span>
-          <span className="num text-[12.5px] text-[var(--color-ink-3)]">×{part.qty}</span>
+          <span className="num text-[12.5px] text-[var(--color-ink-3)]">
+            ×{part.qty}
+          </span>
         </div>
         <span className="rounded-full bg-[var(--color-sent-tint)] px-2 py-0.5 text-[11px] font-medium text-[var(--color-sent-ink)]">
           expected
@@ -592,7 +749,9 @@ function PartCard({
                   <td className="px-3 py-2.5 text-right text-[12px]">
                     {l.inStock ? (
                       <span className="text-[var(--color-sent-ink)]">
-                        {l.stockQty != null ? `${l.stockQty} avail.` : "In stock"}
+                        {l.stockQty != null
+                          ? `${l.stockQty} avail.`
+                          : "In stock"}
                       </span>
                     ) : (
                       <span className="text-red-400">Out of stock</span>
@@ -651,7 +810,9 @@ function SummaryStrip({
               onClick={() => onSelect(key)}
               className={
                 "flex flex-col gap-1 px-4 py-3 text-left transition-colors " +
-                (active ? "bg-[var(--color-accent-tint)]" : "hover:bg-[#fafbfd]")
+                (active
+                  ? "bg-[var(--color-accent-tint)]"
+                  : "hover:bg-[#fafbfd]")
               }
             >
               <div className="flex items-center gap-2">
@@ -663,12 +824,16 @@ function SummaryStrip({
                       : "border-[var(--color-hairline)] bg-white")
                   }
                 >
-                  {active && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                  {active && (
+                    <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                  )}
                 </span>
                 <span
                   className={
                     "text-[12.5px] font-medium " +
-                    (active ? "text-[var(--color-accent)]" : "text-[var(--color-ink)]")
+                    (active
+                      ? "text-[var(--color-accent)]"
+                      : "text-[var(--color-ink)]")
                   }
                 >
                   {label}
@@ -713,7 +878,9 @@ function OrderSection({
     <div className="overflow-hidden rounded-[10px] border border-[var(--color-hairline)] bg-white">
       {/* Fulfillment toggle */}
       <div className="flex items-center justify-between gap-3 border-b border-[var(--color-hairline)] px-4 py-3">
-        <span className="text-[13px] font-medium text-[var(--color-ink)]">Order</span>
+        <span className="text-[13px] font-medium text-[var(--color-ink)]">
+          Order
+        </span>
         <div className="flex items-center rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] p-0.5">
           {(["pickup", "ship"] as Fulfillment[]).map((f) => (
             <button
@@ -751,7 +918,9 @@ function OrderSection({
                   </div>
                   <div className="mt-0.5 text-[12px] leading-snug text-[var(--color-ink-2)]">
                     {store.lines
-                      .map((l) => `${l.partName}${l.qty > 1 ? ` ×${l.qty}` : ""}`)
+                      .map(
+                        (l) => `${l.partName}${l.qty > 1 ? ` ×${l.qty}` : ""}`,
+                      )
                       .join(" · ")}
                   </div>
                   <div className="num mt-0.5 text-[12.5px] font-medium text-[var(--color-ink)]">
@@ -761,7 +930,9 @@ function OrderSection({
                     <div className="mt-1 text-[11.5px] text-[var(--color-ink-3)]">
                       <span className="text-[var(--color-sent-ink)]">✓</span>{" "}
                       {fulfillment === "pickup" ? "Pickup ETA" : "Delivery"}:{" "}
-                      <span className="text-[var(--color-ink)]">{cs.result.eta}</span>
+                      <span className="text-[var(--color-ink)]">
+                        {cs.result.eta}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -773,7 +944,11 @@ function OrderSection({
                     disabled={cs?.loading}
                     onClick={() => {
                       if (cs?.result) {
-                        window.open(cs.result.checkoutUrl, "_blank", "noopener,noreferrer");
+                        window.open(
+                          cs.result.checkoutUrl,
+                          "_blank",
+                          "noopener,noreferrer",
+                        );
                       } else {
                         onCheckout(store);
                       }
@@ -781,7 +956,11 @@ function OrderSection({
                     className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3 h-8 text-[12.5px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {cs?.loading ? (
-                      <Loader2 size={12} strokeWidth={2} className="animate-spin" />
+                      <Loader2
+                        size={12}
+                        strokeWidth={2}
+                        className="animate-spin"
+                      />
                     ) : cs?.result ? (
                       <>
                         <ExternalLink size={12} strokeWidth={2} />
@@ -815,7 +994,9 @@ interface InboundPartsViewProps {
   partsSuggestion?: Array<Record<string, unknown>>;
 }
 
-export default function InboundPartsView({ partsSuggestion }: InboundPartsViewProps) {
+export default function InboundPartsView({
+  partsSuggestion,
+}: InboundPartsViewProps) {
   const parts: PartNeed[] = useMemo(() => {
     if (partsSuggestion?.length) {
       return partsSuggestion.map((p, i) => ({
@@ -827,6 +1008,40 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
     return ANTICIPATED_PARTS;
   }, [partsSuggestion]);
 
+  const mockDataForParts: LocalPartsData = useMemo(() => {
+    if (!partsSuggestion?.length) return MOCK_LOCAL_PARTS;
+    const listingsByPart: Record<string, Listing[]> = {};
+    parts.forEach((part, i) => {
+      listingsByPart[part.id] = [
+        {
+          supplierId: "s1",
+          price: Number(partsSuggestion[i]?.price ?? 20) * 0.95,
+          inStock: true,
+          stockQty: 6,
+          pickupReady: true,
+          openNow: true,
+        },
+        {
+          supplierId: "s2",
+          price: Number(partsSuggestion[i]?.price ?? 20),
+          inStock: true,
+          stockQty: 12,
+          pickupReady: true,
+          openNow: true,
+        },
+        {
+          supplierId: "s3",
+          price: Number(partsSuggestion[i]?.price ?? 20) * 1.08,
+          inStock: true,
+          stockQty: 5,
+          pickupReady: false,
+          openNow: true,
+        },
+      ];
+    });
+    return { ...MOCK_LOCAL_PARTS, listingsByPart };
+  }, [parts, partsSuggestion]);
+
   // Filter state
   const [distance, setDistance] = useState<DistanceOpt>(25);
   const [sort, setSort] = useState<SortOpt>("cheapest");
@@ -836,12 +1051,16 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
 
   // UI interaction state
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(
+    null,
+  );
 
   // Order state
   const [activeStrategy, setActiveStrategy] = useState<StrategyKey>("cheapest");
   const [fulfillment, setFulfillment] = useState<Fulfillment>("pickup");
-  const [checkoutStates, setCheckoutStates] = useState<Record<string, CheckoutState>>({});
+  const [checkoutStates, setCheckoutStates] = useState<
+    Record<string, CheckoutState>
+  >({});
 
   // Async data — getLocalParts will become a real API call
   const [localParts, setLocalParts] = useState<LocalPartsData | null>(null);
@@ -852,26 +1071,34 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
     setPartsLoading(true);
     setPartsError(false);
     try {
-      const data = await getLocalParts(parts, "412 Cedar Court");
+      const data = partsSuggestion?.length
+        ? mockDataForParts
+        : await getLocalParts(parts, "412 Cedar Court");
       setLocalParts(data);
     } catch {
       setPartsError(true);
-      setLocalParts(MOCK_LOCAL_PARTS);
+      setLocalParts(mockDataForParts);
     } finally {
       setPartsLoading(false);
     }
-  }, [parts]);
+  }, [parts, mockDataForParts, partsSuggestion]);
 
-  useEffect(() => { void loadParts(); }, [loadParts]);
+  useEffect(() => {
+    void loadParts();
+  }, [loadParts]);
 
-  const { jobSite, suppliers, listingsByPart } = localParts ?? MOCK_LOCAL_PARTS;
+  const { jobSite, suppliers, listingsByPart } = localParts ?? mockDataForParts;
 
   // Apply filters + sort to listings per part
   const filteredListings = useMemo(() => {
     const result: Record<string, Listing[]> = {};
     for (const part of parts) {
       const raw = listingsByPart[part.id] ?? [];
-      const filtered = applyFilters(raw, suppliers, { distance, availability, supplierFilter });
+      const filtered = applyFilters(raw, suppliers, {
+        distance,
+        availability,
+        supplierFilter,
+      });
       result[part.id] = sortListings(filtered, sort, suppliers);
     }
     return result;
@@ -883,7 +1110,8 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
     [parts, suppliers, filteredListings],
   );
 
-  const activeStrategyData = activeStrategy === "cheapest" ? cheapest : fewestStops;
+  const activeStrategyData =
+    activeStrategy === "cheapest" ? cheapest : fewestStops;
 
   // Which supplier has the active plan's listing for each part
   const planSupplierByPart = useMemo(() => {
@@ -922,7 +1150,11 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
         [store.storeId]: { loading: true, result: null },
       }));
       try {
-        const result = await prepareCheckout(store.storeId, store.lines, fulfillment);
+        const result = await prepareCheckout(
+          store.storeId,
+          store.lines,
+          fulfillment,
+        );
         setCheckoutStates((prev) => ({
           ...prev,
           [store.storeId]: { loading: false, result },
@@ -1018,76 +1250,80 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
           <div className="h-28 rounded-[10px] bg-[#f0f1f3]" />
         </div>
       ) : (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
-        {/* Left column: part cards + summary strip */}
-        <div className="flex flex-col gap-3">
-          {parts.map((part) => (
-            <PartCard
-              key={part.id}
-              part={part}
-              listings={filteredListings[part.id] ?? []}
-              suppliers={suppliers}
-              planSupplierId={planSupplierByPart[part.id]}
-              onHover={setHoveredPartId}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
+          {/* Left column: part cards + summary strip */}
+          <div className="flex flex-col gap-3">
+            {parts.map((part) => (
+              <PartCard
+                key={part.id}
+                part={part}
+                listings={filteredListings[part.id] ?? []}
+                suppliers={suppliers}
+                planSupplierId={planSupplierByPart[part.id]}
+                onHover={setHoveredPartId}
+              />
+            ))}
+            <SummaryStrip
+              cheapest={cheapest}
+              fewestStops={fewestStops}
+              activeStrategy={activeStrategy}
+              onSelect={setActiveStrategy}
             />
-          ))}
-          <SummaryStrip
-            cheapest={cheapest}
-            fewestStops={fewestStops}
-            activeStrategy={activeStrategy}
-            onSelect={setActiveStrategy}
-          />
-        </div>
-
-        {/* Right column: map + controls + order section */}
-        <div className="flex flex-col gap-3">
-          <MapCanvas
-            jobSite={jobSite}
-            suppliers={suppliers}
-            hoveredIds={hoveredIds}
-            planIds={planIds}
-            selectedId={selectedSupplierId}
-            centerOn={centerOn}
-            onSelect={setSelectedSupplierId}
-          />
-
-          {/* Map controls row */}
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1.5 text-[12.5px] text-[var(--color-ink-3)]">
-              <MapPin size={13} strokeWidth={2} className="text-[var(--color-accent)]" />
-              Shop near
-            </div>
-            <div className="flex items-center rounded-[8px] border border-[var(--color-hairline)] p-0.5">
-              {(["jobsite", "me"] as CenterOn[]).map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setCenterOn(opt)}
-                  className={
-                    "rounded-[6px] px-3 h-7 text-[12.5px] font-medium transition-colors " +
-                    (centerOn === opt
-                      ? "bg-white text-[var(--color-ink)] shadow-sm"
-                      : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]")
-                  }
-                >
-                  {opt === "jobsite" ? "Job site" : "Me"}
-                </button>
-              ))}
-            </div>
-            <span className="text-[11.5px] text-[var(--color-ink-3)]">
-              {suppliers.length} nearby
-            </span>
           </div>
 
-          <OrderSection
-            strategy={activeStrategyData}
-            fulfillment={fulfillment}
-            onFulfillmentChange={setFulfillment}
-            checkoutStates={checkoutStates}
-            onCheckout={handleCheckout}
-          />
+          {/* Right column: map + controls + order section */}
+          <div className="flex flex-col gap-3">
+            <MapCanvas
+              jobSite={jobSite}
+              suppliers={suppliers}
+              hoveredIds={hoveredIds}
+              planIds={planIds}
+              selectedId={selectedSupplierId}
+              centerOn={centerOn}
+              onSelect={setSelectedSupplierId}
+            />
+
+            {/* Map controls row */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1.5 text-[12.5px] text-[var(--color-ink-3)]">
+                <MapPin
+                  size={13}
+                  strokeWidth={2}
+                  className="text-[var(--color-accent)]"
+                />
+                Shop near
+              </div>
+              <div className="flex items-center rounded-[8px] border border-[var(--color-hairline)] p-0.5">
+                {(["jobsite", "me"] as CenterOn[]).map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => setCenterOn(opt)}
+                    className={
+                      "rounded-[6px] px-3 h-7 text-[12.5px] font-medium transition-colors " +
+                      (centerOn === opt
+                        ? "bg-white text-[var(--color-ink)] shadow-sm"
+                        : "text-[var(--color-ink-3)] hover:text-[var(--color-ink)]")
+                    }
+                  >
+                    {opt === "jobsite" ? "Job site" : "Me"}
+                  </button>
+                ))}
+              </div>
+              <span className="text-[11.5px] text-[var(--color-ink-3)]">
+                {suppliers.length} nearby
+              </span>
+            </div>
+
+            <OrderSection
+              strategy={activeStrategyData}
+              fulfillment={fulfillment}
+              onFulfillmentChange={setFulfillment}
+              checkoutStates={checkoutStates}
+              onCheckout={handleCheckout}
+            />
+          </div>
         </div>
-      </div>
       )}
     </div>
   );
