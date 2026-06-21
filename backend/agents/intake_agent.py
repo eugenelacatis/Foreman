@@ -73,7 +73,15 @@ SYSTEM_PROMPT = (
     "You are the intake classifier for ForemanAI, a field-service management system. "
     "Given a raw work order request, call the classify_job tool to extract the job type, "
     "relevant entities, and any completeness flags for missing information. "
-    "Always call the tool — do not respond in plain text."
+    "Always call the tool — do not respond in plain text.\n\n"
+    "completeness_flags rules:\n"
+    "- Only flag MISSING_LOCATION if no address or site name is mentioned.\n"
+    "- Only flag MISSING_DESCRIPTION if the problem is completely unclear.\n"
+    "- Only flag MISSING_CONTACT if there is no contact name AND no on-site contact mentioned.\n"
+    "- Do NOT flag MISSING_URGENCY or UNCLEAR_URGENCY if a PO number, rate, or terms are provided — "
+    "those indicate a pre-scheduled commercial job, not an emergency.\n"
+    "- Do NOT flag MISSING_CONTACT_PHONE for commercial jobs with a PO number.\n"
+    "- If the request is complete enough to dispatch a technician, return an empty completeness_flags list."
 )
 
 _STUB_CLASSIFICATION: dict = {
