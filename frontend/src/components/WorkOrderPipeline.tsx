@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { WorkOrder } from "../api/client";
+import { setSentryWorkOrderContext } from "../lib/sentry";
 import ArmorIQBlock from "./ArmorIQBlock";
 import IntakeView from "./IntakeView";
 import InvoicingView from "./InvoicingView";
@@ -32,6 +33,10 @@ export default function WorkOrderPipeline({
 }: WorkOrderPipelineProps) {
   const [armoriq, setArmoriq] = useState<ArmorIQState | null>(null);
   const currentIdx = stageIndex(workOrder.status);
+
+  useEffect(() => {
+    setSentryWorkOrderContext(workOrder.id, workOrder.status);
+  }, [workOrder.id, workOrder.status]);
 
   function triggerArmorIQ() {
     setArmoriq({

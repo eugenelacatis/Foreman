@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ForemanAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/monokai.css" />
+  <style>
+    /* ── Base overrides ── */
+    :root {
+      --bg:       #0d1117;
+      --bg2:      #161b22;
+      --amber:    #f59e0b;
+      --amber-dim:#92600a;
+      --slate:    #8b949e;
+      --text:     #e6edf3;
+      --border:   #30363d;
+    }
+
+    .reveal-viewport { background: var(--bg); }
+    .reveal { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+    .reveal .slides section { text-align: left; }
+
+    /* headings */
+    .reveal h1, .reveal h2, .reveal h3 {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--amber);
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .reveal h1 { font-size: 2em; }
+    .reveal h2 { font-size: 1.3em; margin-bottom: 0.5em; }
+    .reveal h3 { font-size: 0.9em; color: var(--slate); font-weight: 400; margin-bottom: 0.8em; }
+
+    /* no default margins fighting us */
+    .reveal p { margin: 0.5em 0; line-height: 1.6; font-size: 0.88em; }
+    .reveal strong { color: var(--amber); font-weight: 600; }
+    .reveal em { color: var(--slate); font-style: normal; }
+
+    /* ── Utility classes ── */
+    .amber  { color: var(--amber); }
+    .slate  { color: var(--slate); font-size: 0.75em; }
+    .center { text-align: center !important; }
+    .big    { font-size: 1.4em; line-height: 1.3; }
+    .mono   { font-family: 'JetBrains Mono', monospace; }
+
+    /* ── Title slide ── */
+    .slide-title {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      height: 100%;
+    }
+    .slide-title .label {
+      color: var(--amber);
+      font-size: 0.65em;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.4em;
+    }
+    .slide-title h1 { font-size: 3.8em; margin: 0; }
+    .slide-title .tagline {
+      color: var(--slate);
+      font-size: 0.9em;
+      margin-top: 0.8em;
+    }
+    .slide-title .divider {
+      width: 3em;
+      height: 3px;
+      background: var(--amber);
+      margin: 1.2em 0;
+    }
+
+    /* ── Pipeline diagram ── */
+    .pipeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 1.2em 0;
+      flex-wrap: nowrap;
+    }
+    .pipe-node {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      padding: 0.5em 0.8em;
+      font-size: 0.7em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .pipe-node.highlight {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+    .pipe-arrow {
+      color: var(--amber-dim);
+      font-size: 1em;
+      padding: 0 0.3em;
+      flex-shrink: 0;
+    }
+
+    /* ── Work-order schema ── */
+    .schema {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6em;
+      margin-top: 0.8em;
+    }
+    .schema-field {
+      background: var(--bg2);
+      border-left: 3px solid var(--border);
+      padding: 0.5em 0.8em;
+      font-size: 0.72em;
+    }
+    .schema-field.owned {
+      border-left-color: var(--amber);
+    }
+    .schema-field .key { color: var(--amber); }
+    .schema-field .val { color: var(--slate); font-size: 0.9em; }
+
+    /* ── SMS bubble ── */
+    .sms-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin: 1em 0;
+    }
+    .sms-label {
+      font-size: 0.6em;
+      color: var(--slate);
+      margin-bottom: 0.4em;
+    }
+    .sms-bubble {
+      background: #1c2128;
+      border: 1px solid var(--border);
+      border-radius: 4px 16px 16px 4px;
+      padding: 0.8em 1.1em;
+      font-size: 0.78em;
+      max-width: 80%;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    /* ── Code override ── */
+    .reveal pre {
+      width: 100%;
+      box-shadow: none;
+      border: 1px solid var(--border);
+      border-radius: 2px;
+    }
+    .reveal pre code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72em;
+      padding: 1em;
+      max-height: 320px;
+    }
+
+    /* ── Two-column ── */
+    .cols {
+      display: grid;
+      gap: 1.5em;
+    }
+    .cols-2 { grid-template-columns: 1fr 1fr; }
+    .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+    /* ── Stat call-out ── */
+    .stat-block {
+      border-left: 4px solid var(--amber);
+      padding: 0.6em 1em;
+      margin: 0.8em 0;
+      background: var(--bg2);
+    }
+    .stat-block .num {
+      font-size: 2.2em;
+      font-weight: 700;
+      color: var(--amber);
+      line-height: 1;
+    }
+    .stat-block .desc {
+      font-size: 0.72em;
+      color: var(--slate);
+      margin-top: 0.2em;
+    }
+
+    /* ── Flag / alert ── */
+    .flag {
+      display: inline-block;
+      background: #451a03;
+      border: 1px solid #92400e;
+      color: #fbbf24;
+      font-size: 0.72em;
+      padding: 0.25em 0.7em;
+      letter-spacing: 0.05em;
+    }
+    .flag-green {
+      background: #052e16;
+      border-color: #166534;
+      color: #4ade80;
+    }
+    .flag-red {
+      background: #450a0a;
+      border-color: #991b1b;
+      color: #f87171;
+    }
+
+    /* ── Sponsor row ── */
+    .sponsor-row {
+      display: flex;
+      gap: 1.5em;
+      align-items: center;
+      margin-top: 1.2em;
+      flex-wrap: wrap;
+    }
+    .sponsor-chip {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      font-size: 0.7em;
+      padding: 0.3em 0.8em;
+      color: var(--slate);
+    }
+
+    /* ── ArmorIQ block slide ── */
+    .block-terminal {
+      background: #0a0a0a;
+      border: 1px solid #7c3aed;
+      border-left: 4px solid #7c3aed;
+      padding: 1em;
+      font-size: 0.72em;
+      line-height: 1.8;
+    }
+    .block-terminal .prompt { color: #7c3aed; }
+    .block-terminal .blocked { color: #f87171; }
+    .block-terminal .reason  { color: var(--slate); }
+
+    /* ── Phoenix trace ── */
+    .trace-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8em;
+      margin: 0.4em 0;
+      font-size: 0.72em;
+    }
+    .trace-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--amber);
+      margin-top: 0.35em;
+      flex-shrink: 0;
+    }
+    .trace-dot.purple { background: #7c3aed; }
+    .trace-dot.green  { background: #4ade80; }
+    .trace-label { color: var(--slate); }
+    .trace-span  { color: var(--text); }
+
+    /* ── Close slide ── */
+    .close-quote {
+      font-size: 1.3em;
+      line-height: 1.5;
+      border-left: 4px solid var(--amber);
+      padding-left: 0.8em;
+      margin: 0.8em 0 1.4em;
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- 1. TITLE -->
+    <section>
+      <div class="slide-title">
+        <div class="label">24-hour hackathon build</div>
+        <h1>Foreman<span class="amber">AI</span></h1>
+        <div class="divider"></div>
+        <div class="tagline">AI for the trades. Human in the loop.</div>
+      </div>
+    </section>
+
+    <!-- 2. THE PROBLEM -->
+    <section>
+      <h2>The problem</h2>
+      <p style="color:var(--slate); margin-bottom:1.2em;">Most field service shops still run on paper and memory.</p>
+      <div class="cols cols-2">
+        <div class="stat-block">
+          <div class="num">2-4 days</div>
+          <div class="desc">between finishing a job and sending the invoice</div>
+        </div>
+        <div class="stat-block">
+          <div class="num">~30%</div>
+          <div class="desc">of invoices come back with questions before they get paid</div>
+        </div>
+      </div>
+      <p style="margin-top:1.2em;">A tech wraps up at 5pm. The invoice gets typed up that night, if they remember, missing half the parts, wrong rate, nothing consistent with last month's.</p>
+    </section>
+
+    <!-- 3. THE REQUEST -->
+    <section>
+      <h2>It starts with a text</h2>
+      <p style="color:var(--slate);">No form. No app. Just a text.</p>
+      <div class="sms-wrap" style="margin-top:1.2em;">
+        <div class="sms-label">incoming · SMS · 09:14</div>
+        <div class="sms-bubble">
+          Repair the HVAC unit at 142 Elm Street. The compressor is making a
+          grinding noise and the system stopped cooling yesterday. Client:
+          Riverside Property Management. Urgency: <strong>high</strong>.
+        </div>
+      </div>
+      <p style="margin-top:1em; color:var(--slate);">Foreman takes that and turns it into a complete, ready-to-send invoice. A human approves each step before anything moves.</p>
+    </section>
+
+    <!-- 4. THE PIPELINE -->
+    <section>
+      <h2>The pipeline</h2>
+      <p style="color:var(--slate); margin-bottom:1em;">Three agents, one shared work order in Redis. They don't call each other; they read and write the same object.</p>
+      <div class="pipeline">
+        <div class="pipe-node">Raw request</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">Intake</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">Scheduling</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node highlight">Invoicing</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node" style="border-color:var(--amber); color:var(--amber);">Human ✓</div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-node">Invoice + email</div>
+      </div>
+      <div style="margin-top:1.2em; font-size:0.78em; color:var(--slate);">
+        Each agent writes its section and stops. The next one picks up from there.
+      </div>
+    </section>
+
+    <!-- 5. WORK-ORDER OBJECT -->
+    <section>
+      <h2>The shared work-order object</h2>
+      <p style="color:var(--slate); margin-bottom:0.8em;">One object in Redis. Each agent owns one section and doesn't touch the others.</p>
+      <div class="schema">
+        <div class="schema-field">
+          <div class="key">id</div>
+          <div class="val">uuid</div>
+        </div>
+        <div class="schema-field">
+          <div class="key">status</div>
+          <div class="val">intake → scheduling → invoicing → done</div>
+        </div>
+        <div class="schema-field">
+          <div class="key">raw_request</div>
+          <div class="val">the original unstructured text</div>
+        </div>
+        <div class="schema-field">
+          <div class="key">classification</div>
+          <div class="val">intake writes this</div>
+        </div>
+        <div class="schema-field">
+          <div class="key">schedule</div>
+          <div class="val">scheduling writes this</div>
+        </div>
+        <div class="schema-field owned">
+          <div class="key">invoice</div>
+          <div class="val">invoicing agent writes this ← deepest stage</div>
+        </div>
+        <div class="schema-field">
+          <div class="key">approvals</div>
+          <div class="val">human gates passed</div>
+        </div>
+        <div class="schema-field">
+          <div class="key">trace_id</div>
+          <div class="val">links to Arize Phoenix span</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. INTAKE -->
+    <section>
+      <h2>Step 1 — Intake</h2>
+      <p style="color:var(--slate); margin-bottom:0.8em;">Reads the text, pulls out what it knows, flags what's missing. Nothing moves until a human says go.</p>
+      <pre><code class="language-json">{
+  "job_type": "hvac_repair",
+  "client": "Riverside Property Management",
+  "location": "142 Elm Street",
+  "urgency": "high",
+  "completeness": {
+    "has_contact": true,
+    "has_location": true,
+    "has_description": true,
+    "missing": []
+  },
+  "status": "awaiting_approval"
+}</code></pre>
+      <p style="margin-top:0.8em; font-size:0.78em; color:var(--slate);">Structured and staged. Waiting on a human.</p>
+    </section>
+
+    <!-- 7. SCHEDULING -->
+    <section>
+      <h2>Step 2 — Scheduling</h2>
+      <p style="color:var(--slate); margin-bottom:0.8em;">Picks time slots, writes the client message, estimates what parts you'll probably need.</p>
+      <div class="cols cols-2" style="gap:1em;">
+        <div>
+          <div style="font-size:0.65em; color:var(--amber); margin-bottom:0.4em;">PARTS SUGGESTION</div>
+          <pre style="margin:0;"><code class="language-text">compressor unit     $420–$680
+capacitor           $15–$45
+refrigerant R-410A  $60–$120
+                    ─────────
+estimated range     $495–$845</code></pre>
+        </div>
+        <div>
+          <div style="font-size:0.65em; color:var(--amber); margin-bottom:0.4em;">OUTREACH DRAFT</div>
+          <div style="background:var(--bg2); border:1px solid var(--border); padding:0.7em; font-size:0.7em; line-height:1.7;">
+            Hi Riverside PM — we've received your request for
+            142 Elm Street. A tech can be on-site <strong>Thu 9am–11am</strong>
+            or <strong>Fri 2pm–4pm</strong>. Please confirm.
+          </div>
+        </div>
+      </div>
+      <p style="margin-top:0.9em; font-size:0.78em; color:var(--slate);">Still nothing sent. Human approves first.</p>
+    </section>
+
+    <!-- 8. INVOICING -->
+    <section>
+      <h2>Step 3 — Invoicing</h2>
+      <p style="color:var(--slate); margin-bottom:0.8em;">It already knows the job, the client, the parts. It just asks for what's actually missing.</p>
+      <div class="cols cols-2" style="gap:1em;">
+        <div>
+          <div style="font-size:0.65em; color:var(--amber); margin-bottom:0.5em;">GAP-FILL CHAT</div>
+          <div style="background:var(--bg2); border:1px solid var(--border); padding:0.7em; font-size:0.68em; line-height:1.8;">
+            <div><span style="color:var(--amber);">agent →</span> I've pre-filled parts and job description from the work order. What's your labor rate and hours on site?</div>
+            <div style="margin-top:0.6em;"><span style="color:var(--slate);">tech  →</span> $140/hr, 3.5 hours, $75 trip charge</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.65em; color:var(--amber); margin-bottom:0.5em;">CONSISTENCY CHECK</div>
+          <div style="background:var(--bg2); border:1px solid var(--border); padding:0.7em; font-size:0.68em; line-height:1.8;">
+            <div class="flag">⚠ LABOR_RATE_HIGH</div>
+            <div style="margin-top:0.6em; color:var(--slate);">$140/hr is above the historical average of $98/hr for HVAC repair in this region.</div>
+            <div style="margin-top:0.5em; color:var(--text);">Doesn't stop you. Just flags it. Your call.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. ARMORIQ BLOCK -->
+    <section>
+      <h2>Step 4 — ArmorIQ block</h2>
+      <p style="color:var(--slate); margin-bottom:0.9em;">Before the agent commits anything, ArmorIQ checks it against what was approved. If it's not in the plan, it stops.</p>
+      <div class="block-terminal">
+        <div><span class="prompt">armoriq →</span> checking action: <span style="color:#c084fc;">FILL_TEMPLATE</span></div>
+        <div><span class="prompt">armoriq →</span> plan hash: <span style="color:var(--slate);">7f3a…c9b1 ✓</span></div>
+        <div style="margin-top:0.5em;"><span class="prompt">armoriq →</span> checking action: <span style="color:#f87171;">DEMO_BLOCK</span></div>
+        <div><span class="blocked">✗ BLOCKED</span> <span class="reason">— action not in approved plan</span></div>
+        <div style="margin-top:0.4em;" class="reason">operator alert raised · agent cannot proceed · waiting for human</div>
+      </div>
+      <p style="margin-top:0.9em; font-size:0.78em; color:var(--slate);">This isn't a system prompt asking it nicely to behave. The action physically can't go through without clearance.</p>
+    </section>
+
+    <!-- 10. APPROVAL + OUTPUT -->
+    <section>
+      <h2>Step 5 — Human approves</h2>
+      <p style="color:var(--slate); margin-bottom:0.9em;">One button. Invoice comes out clean, email is drafted and waiting. Nothing left your hands without you saying so.</p>
+      <div class="cols cols-2" style="gap:1em;">
+        <div>
+          <div style="font-size:0.65em; color:var(--amber); margin-bottom:0.4em;">RENDERED INVOICE</div>
+          <pre style="margin:0;"><code class="language-text">FOREMAN INVOICE #2024-0047
+─────────────────────────────
+Client: Riverside Property Mgmt
+Job:    HVAC Repair — 142 Elm St
+Date:   2024-06-20
+
+Labor   3.5 hrs @ $140/hr  $490.00
+Compressor unit            $580.00
+Capacitor                   $35.00
+Refrigerant R-410A         $95.00
+Trip charge                 $75.00
+─────────────────────────────
+TOTAL                    $1,275.00</code></pre>
+        </div>
+        <div>
+          <div style="font-size:0.65em; color:var(--amber); margin-bottom:0.4em;">VENDOR EMAIL DRAFT</div>
+          <div style="background:var(--bg2); border:1px solid var(--border); padding:0.7em; font-size:0.68em; line-height:1.8;">
+            <div style="color:var(--slate);">To: billing@riversidepm.com</div>
+            <div style="color:var(--slate);">Re: Invoice #2024-0047</div>
+            <div style="margin-top:0.5em;">Please find attached the invoice for HVAC repair completed at 142 Elm Street...</div>
+            <div style="margin-top:0.6em;" class="flag flag-green">DRAFT · not sent</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11. OBSERVABILITY -->
+    <section>
+      <h2>Every decision is traced</h2>
+      <p style="color:var(--slate); margin-bottom:1em;">Every Claude call is in Phoenix. You can see exactly what the agent was looking at and why it did what it did.</p>
+      <div style="background:var(--bg2); border:1px solid var(--border); padding:1em;">
+        <div class="trace-row">
+          <div class="trace-dot green"></div>
+          <div>
+            <div class="trace-span">intake.classify</div>
+            <div class="trace-label">job_type=hvac_repair · urgency=high · 312ms</div>
+          </div>
+        </div>
+        <div class="trace-row">
+          <div class="trace-dot green"></div>
+          <div>
+            <div class="trace-span">scheduling.suggest_parts</div>
+            <div class="trace-label">3 parts suggested · seeded pricing fallback used · 891ms</div>
+          </div>
+        </div>
+        <div class="trace-row">
+          <div class="trace-dot"></div>
+          <div>
+            <div class="trace-span">invoicing.gap_fill · turn 1</div>
+            <div class="trace-label">missing: labor_rate, hours, trip_charge · 540ms</div>
+          </div>
+        </div>
+        <div class="trace-row">
+          <div class="trace-dot"></div>
+          <div>
+            <div class="trace-span">invoicing.consistency_check</div>
+            <div class="trace-label">LABOR_RATE_HIGH flagged · avg=$98 · input=$140 · 410ms</div>
+          </div>
+        </div>
+        <div class="trace-row">
+          <div class="trace-dot purple"></div>
+          <div>
+            <div class="trace-span">armoriq.check_action · DEMO_BLOCK</div>
+            <div class="trace-label">blocked · operator alert raised · 28ms</div>
+          </div>
+        </div>
+        <div class="trace-row">
+          <div class="trace-dot green"></div>
+          <div>
+            <div class="trace-span">invoicing.fill_template</div>
+            <div class="trace-label">template_filled=true · vendor_email_draft=true · 1.2s</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. CLOSE -->
+    <section>
+      <div style="padding-top:0.5em;">
+        <h2>What this is</h2>
+        <div class="close-quote">
+          "Not replacing the worker.<br/>Giving them their evenings back."
+        </div>
+        <p style="font-size:0.82em; color:var(--slate); margin-bottom:1.4em;">
+          The AI handles the tedious part. You make the calls that matter. That's the whole point.
+        </p>
+        <div style="font-size:0.6em; color:var(--amber); letter-spacing:0.1em; margin-bottom:0.6em;">BUILT WITH</div>
+        <div class="sponsor-row">
+          <div class="sponsor-chip">Anthropic Claude</div>
+          <div class="sponsor-chip">Redis Stack</div>
+          <div class="sponsor-chip">ArmorIQ</div>
+          <div class="sponsor-chip">Arize Phoenix</div>
+          <div class="sponsor-chip">FastAPI</div>
+          <div class="sponsor-chip">Vite + React</div>
+        </div>
+        <div style="margin-top:1.6em; font-size:0.65em; color:var(--slate);">
+          Eugene · Bhoomika · Harshita · Michelle
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/highlight/highlight.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    transition: 'fade',
+    backgroundTransition: 'fade',
+    controls: false,
+    progress: false,
+    slideNumber: false,
+    width: 1100,
+    height: 700,
+    margin: 0.06,
+    minScale: 0.2,
+    maxScale: 2.0,
+    plugins: [RevealHighlight]
+  });
+  // Override reveal's default 42px base font — drop to 24px so content fits
+  document.querySelector('.reveal').style.fontSize = '24px';
+</script>
+</body>
+</html>

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+import sentry_sdk
 from fastapi import APIRouter, Body, HTTPException
 
 from backend.agents.invoicing_agent import run_invoicing as _run_invoicing
@@ -21,6 +22,8 @@ async def create_work_order(raw_request: str = Body(..., embed=True)) -> WorkOrd
         raw_request=raw_request,
     )
     await save_work_order(wo)
+    sentry_sdk.set_tag("work_order_id", wo.id)
+    sentry_sdk.set_tag("work_order_status", wo.status)
     return wo
 
 
@@ -29,6 +32,8 @@ async def get_work_order_route(id: str) -> WorkOrder:
     wo = await get_work_order(id)
     if wo is None:
         raise HTTPException(status_code=404, detail="Work order not found")
+    sentry_sdk.set_tag("work_order_id", wo.id)
+    sentry_sdk.set_tag("work_order_status", wo.status)
     return wo
 
 
@@ -40,6 +45,8 @@ async def approve_work_order(
     wo = await get_work_order(id)
     if wo is None:
         raise HTTPException(status_code=404, detail="Work order not found")
+    sentry_sdk.set_tag("work_order_id", wo.id)
+    sentry_sdk.set_tag("work_order_status", wo.status)
 
     if stage == "intake":
         wo.approvals.intake_approved = True
@@ -63,6 +70,8 @@ async def invoice_history(id: str, query: str = "") -> list[dict]:
     wo = await get_work_order(id)
     if wo is None:
         raise HTTPException(status_code=404, detail="Work order not found")
+    sentry_sdk.set_tag("work_order_id", wo.id)
+    sentry_sdk.set_tag("work_order_status", wo.status)
     search_query = query or (wo.raw_request if wo.raw_request else "")
     return await search_invoice_history(search_query)
 
@@ -75,6 +84,8 @@ async def invoice_chat(
     wo = await get_work_order(id)
     if wo is None:
         raise HTTPException(status_code=404, detail="Work order not found")
+    sentry_sdk.set_tag("work_order_id", wo.id)
+    sentry_sdk.set_tag("work_order_status", wo.status)
 
     prior_invoice = wo.invoice.model_dump() if wo.invoice else None
     result = await _run_invoicing(
