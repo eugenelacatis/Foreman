@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import {
   Loader2,
@@ -17,6 +17,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import BrandedInvoice from "./BrandedInvoice";
+import { getWorkOrder, approveStage } from "../../api/client";
+import type { WorkOrder } from "../../api/client";
 
 /* ============================================================
    Shared types
@@ -70,6 +72,12 @@ const STEP_TO_STAGE: Record<StepKey, StageKey> = STAGES.reduce(
 
 const FILE_NAME = "work-order-WO-1041.pdf";
 
+const SEED_LINES: InvoiceLine[] = [
+  { id: "li-1", item: "Compressor capacitor — replace", qty: 1, rate: 92, flagged: false },
+  { id: "li-2", item: "Contactor — replace", qty: 1, rate: 48, flagged: false },
+  { id: "li-3", item: "Labor · diagnose & repair", qty: 3.0, rate: 95, flagged: true },
+];
+
 const fmtMoney = (n: number | string) =>
   "$" +
   (Number(n) || 0).toLocaleString("en-US", {
@@ -82,6 +90,25 @@ const fmtQty = (n: number | string) => {
   return Number.isInteger(num) ? String(num) : num.toFixed(1);
 };
 
+function toInvoiceLine(
+  raw: Record<string, unknown>,
+  idx: number,
+  laborFlagged: boolean,
+): InvoiceLine {
+  const item = String(raw.description ?? raw.item ?? raw.name ?? `Item ${idx + 1}`);
+  const qty = Number(raw.qty ?? raw.quantity ?? 1);
+  const rate = Number(raw.rate ?? raw.unit_price ?? raw.price ?? raw.amount ?? 0);
+  const flagged = laborFlagged && /labor/i.test(item);
+  return { id: `li-${idx}`, item, qty, rate, flagged };
+}
+
+function invoiceTotal(lines: InvoiceLine[]): number {
+  return lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0);
+}
+
+/* ============================================================
+   Shared UI primitives
+   ============================================================ */
 function Mark({ children }: { children: ReactNode }) {
   return (
     <mark className="rounded-[4px] bg-[var(--color-accent-tint)] px-1 py-0.5 text-[var(--color-accent)]">
@@ -293,28 +320,46 @@ function CombinedSourceCard() {
 }
 
 /* ============================================================
-   Step 1 — INBOUND READING (email only)
+   Step 1 — INBOUND READING
    ============================================================ */
-function Step1Inbound({ onNext }: { onNext: () => void }) {
-  const [items, setItems] = useState<ReasoningItem[]>([
-    { state: "done", label: "Classified job", detail: "HVAC repair" },
-    { state: "done", label: "Read location", detail: "2nd floor, Cedar Court" },
-    { state: "done", label: "Read terms", detail: "PO, $95/hr, Net 30" },
-    { state: "spin", label: "Proposing a visit time…" },
-  ]);
+interface Step1Props {
+  onNext: () => void;
+  wo: WorkOrder | null;
+  polling: boolean;
+  approving: boolean;
+}
 
+function Step1Inbound({ onNext, wo, polling, approving }: Step1Props) {
+  // Mock animation fallback: runs only when there's no real classification yet
+  const [mockDone, setMockDone] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => {
-      setItems((arr) =>
-        arr.map((it, i) =>
-          i === arr.length - 1
-            ? { state: "done", label: "Proposed a visit time", detail: "Wed 11 AM" }
-            : it,
-        ),
-      );
-    }, 2000);
+    if (wo?.classification) return;
+    const t = setTimeout(() => setMockDone(true), 2000);
     return () => clearTimeout(t);
-  }, []);
+  }, [wo?.classification]);
+
+  const items = useMemo((): ReasoningItem[] => {
+    const c = wo?.classification;
+    if (c) {
+      const result: ReasoningItem[] = [
+        { state: "done", label: "Classified job", detail: c.job_type },
+      ];
+      c.completeness_flags.forEach((flag) =>
+        result.push({ state: "done", label: "Extracted field", detail: flag }),
+      );
+      result.push({ state: "done", label: "Classification complete" });
+      return result;
+    }
+    // Mock fallback with animation
+    return [
+      { state: "done", label: "Classified job", detail: "HVAC repair" },
+      { state: "done", label: "Read location", detail: "2nd floor, Cedar Court" },
+      { state: "done", label: "Read terms", detail: "PO, $95/hr, Net 30" },
+      mockDone || !polling
+        ? { state: "done", label: "Proposed a visit time", detail: "Wed 11 AM" }
+        : { state: "spin", label: polling ? "Waiting for intake agent…" : "Proposing a visit time…" },
+    ];
+  }, [wo?.classification, mockDone, polling]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -322,7 +367,9 @@ function Step1Inbound({ onNext }: { onNext: () => void }) {
         <Loader2 size={15} strokeWidth={2} className="animate-spin text-[var(--color-accent)]" />
         <span className="font-medium text-[var(--color-ink)]">Reading the work order…</span>
         <span className="text-[var(--color-ink-3)]">·</span>
-        <span className="text-[var(--color-ink-2)]">Maplewood HVAC</span>
+        <span className="text-[var(--color-ink-2)]">
+          {wo?.classification?.job_type ?? "Maplewood HVAC"}
+        </span>
         <FileChip />
       </div>
 
@@ -342,10 +389,14 @@ function Step1Inbound({ onNext }: { onNext: () => void }) {
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1]"
+          disabled={approving}
+          className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
         >
+          {approving ? (
+            <Loader2 size={13} strokeWidth={2} className="animate-spin" />
+          ) : null}
           Schedule the visit
-          <ChevronRight size={14} strokeWidth={2.25} />
+          {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
         </button>
       </div>
     </div>
@@ -355,14 +406,45 @@ function Step1Inbound({ onNext }: { onNext: () => void }) {
 /* ============================================================
    Step 2 — SCHEDULE
    ============================================================ */
-function Step2Schedule({ onNext }: { onNext: () => void }) {
-  const slots = [
-    { id: "tue", label: "Tue · 9:00 AM" },
-    { id: "wed", label: "Wed · 11:00 AM" },
-    { id: "thu", label: "Thu · 2:00 PM" },
-  ];
-  const [selected, setSelected] = useState<string>("wed");
-  const chosen = slots.find((s) => s.id === selected) ?? slots[1];
+interface Step2Props {
+  onNext: () => void;
+  wo: WorkOrder | null;
+  approving: boolean;
+}
+
+const MOCK_SLOTS = [
+  { id: "tue", label: "Tue · 9:00 AM" },
+  { id: "wed", label: "Wed · 11:00 AM" },
+  { id: "thu", label: "Thu · 2:00 PM" },
+];
+
+function Step2Schedule({ onNext, wo, approving }: Step2Props) {
+  const schedule = wo?.schedule;
+
+  const slots = useMemo(() => {
+    if (schedule?.proposed_times?.length) {
+      return schedule.proposed_times.map((t, i) => ({ id: `slot-${i}`, label: t }));
+    }
+    return MOCK_SLOTS;
+  }, [schedule?.proposed_times]);
+
+  const defaultId = slots[1]?.id ?? slots[0]?.id ?? "";
+  const [selected, setSelected] = useState<string>(defaultId);
+
+  // Re-sync when slots arrive from backend
+  useEffect(() => {
+    setSelected(slots[1]?.id ?? slots[0]?.id ?? "");
+  }, [slots]);
+
+  const chosen = slots.find((s) => s.id === selected) ?? slots[0];
+
+  // Outreach draft — backend returns dict; try common key names
+  const draft = schedule?.outreach_draft as
+    | { to?: string; recipient?: string; subject?: string; body?: string; content?: string }
+    | undefined;
+  const draftTo = draft?.to ?? draft?.recipient;
+  const draftSubject = draft?.subject;
+  const draftBody = draft?.body ?? draft?.content;
 
   return (
     <div className="flex flex-col gap-5">
@@ -424,26 +506,35 @@ function Step2Schedule({ onNext }: { onNext: () => void }) {
             <div className="flex gap-2">
               <span className="w-14 shrink-0 text-[var(--color-ink-3)]">To</span>
               <span className="text-[var(--color-ink)]">
-                dispatch@maplewoodhvac.com{" "}
+                {draftTo ?? "dispatch@maplewoodhvac.com"}{" "}
                 <span className="text-[var(--color-ink-3)]">· cc tenant — 2B</span>
               </span>
             </div>
             <div className="flex gap-2">
               <span className="w-14 shrink-0 text-[var(--color-ink-3)]">Subject</span>
               <span className="text-[var(--color-ink)]">
-                AC repair visit — <span className="num">{chosen.label}</span>
+                {draftSubject ?? (
+                  <>
+                    AC repair visit — <span className="num">{chosen?.label}</span>
+                  </>
+                )}
               </span>
             </div>
             <div className="mt-2 border-t border-[var(--color-hairline)] pt-3 text-[var(--color-ink-2)] leading-relaxed">
-              Hi Dana — we'd like to come out{" "}
-              <span className="num text-[var(--color-ink)]">{chosen.label}</span> to look at the
-              2nd-floor unit (Cedar Court, 2B). Reply if that time doesn't work and we'll find
-              another. Referencing PO <span className="num text-[var(--color-ink)]">MW-1041</span>.
-              <br />
-              <br />
-              Thanks,
-              <br />
-              R&amp;K HVAC Services
+              {draftBody ?? (
+                <>
+                  Hi Dana — we'd like to come out{" "}
+                  <span className="num text-[var(--color-ink)]">{chosen?.label}</span> to look at
+                  the 2nd-floor unit (Cedar Court, 2B). Reply if that time doesn't work and we'll
+                  find another. Referencing PO{" "}
+                  <span className="num text-[var(--color-ink)]">MW-1041</span>.
+                  <br />
+                  <br />
+                  Thanks,
+                  <br />
+                  R&amp;K HVAC Services
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -453,10 +544,14 @@ function Step2Schedule({ onNext }: { onNext: () => void }) {
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1]"
+          disabled={approving}
+          className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
         >
+          {approving ? (
+            <Loader2 size={13} strokeWidth={2} className="animate-spin" />
+          ) : null}
           Approve &amp; send
-          <ChevronRight size={14} strokeWidth={2.25} />
+          {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
         </button>
       </div>
     </div>
@@ -532,25 +627,38 @@ function Step3PostJob({ onNext }: { onNext: () => void }) {
 /* ============================================================
    Step 4 — INVOICE (document default, edit toggle)
    ============================================================ */
-const SEED_LINES: InvoiceLine[] = [
-  { id: "li-1", item: "Compressor capacitor — replace", qty: 1, rate: 92, flagged: false },
-  { id: "li-2", item: "Contactor — replace", qty: 1, rate: 48, flagged: false },
-  { id: "li-3", item: "Labor · diagnose & repair", qty: 3.0, rate: 95, flagged: true },
-];
+interface Step4Props {
+  onApprove: () => void;
+  wo: WorkOrder | null;
+  approving: boolean;
+}
 
-function Step4Invoice({ onApprove }: { onApprove: () => void }) {
+function Step4Invoice({ onApprove, wo, approving }: Step4Props) {
+  const completenessFlags = wo?.classification?.completeness_flags ?? [];
+  const laborFlagged = completenessFlags.includes("labor_rate");
+
+  const apiLines = useMemo((): InvoiceLine[] | null => {
+    const items = wo?.invoice?.line_items;
+    if (!items?.length) return null;
+    return items.map((raw, i) => toInvoiceLine(raw, i, laborFlagged));
+  }, [wo?.invoice?.line_items, laborFlagged]);
+
   const [editing, setEditing] = useState(false);
-  const [lines, setLines] = useState<InvoiceLine[]>(SEED_LINES);
+  const [lines, setLines] = useState<InvoiceLine[]>(apiLines ?? SEED_LINES);
   const laborInputRef = useRef<HTMLInputElement>(null);
+
+  // Sync when backend invoice arrives
+  useEffect(() => {
+    if (apiLines) setLines(apiLines);
+  }, [apiLines]);
 
   useEffect(() => {
     if (editing) laborInputRef.current?.focus();
   }, [editing]);
 
-  const total = useMemo(
-    () => lines.reduce((s, l) => s + (Number(l.qty) || 0) * (Number(l.rate) || 0), 0),
-    [lines],
-  );
+  const total = useMemo(() => invoiceTotal(lines), [lines]);
+
+  const invoiceLabel = wo?.invoice?.invoice_id ?? "INV-1041";
 
   const update = (id: string, patch: Partial<InvoiceLine>) =>
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, ...patch } : l)));
@@ -575,7 +683,7 @@ function Step4Invoice({ onApprove }: { onApprove: () => void }) {
           <div className="font-display text-[18px] font-semibold tracking-tight text-[var(--color-ink)]">
             Invoice draft
           </div>
-          <span className="num text-[13px] text-[var(--color-ink-3)]">· INV-1041</span>
+          <span className="num text-[13px] text-[var(--color-ink-3)]">· {invoiceLabel}</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -593,10 +701,14 @@ function Step4Invoice({ onApprove }: { onApprove: () => void }) {
           <button
             type="button"
             onClick={onApprove}
-            className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1]"
+            disabled={approving}
+            className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
           >
+            {approving ? (
+              <Loader2 size={13} strokeWidth={2} className="animate-spin" />
+            ) : null}
             Approve invoice
-            <ChevronRight size={14} strokeWidth={2.25} />
+            {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
           </button>
         </div>
       </div>
@@ -608,6 +720,7 @@ function Step4Invoice({ onApprove }: { onApprove: () => void }) {
           update={update}
           addLine={addLine}
           laborInputRef={laborInputRef}
+          invoiceLabel={invoiceLabel}
         />
       ) : (
         <BrandedInvoice />
@@ -622,9 +735,10 @@ interface EditSplitProps {
   update: (id: string, patch: Partial<InvoiceLine>) => void;
   addLine: () => void;
   laborInputRef: RefObject<HTMLInputElement>;
+  invoiceLabel: string;
 }
 
-function EditSplit({ lines, total, update, addLine, laborInputRef }: EditSplitProps) {
+function EditSplit({ lines, total, update, addLine, laborInputRef, invoiceLabel }: EditSplitProps) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_1fr]">
       <div className="rounded-[10px] border border-[var(--color-hairline)] bg-white">
@@ -702,7 +816,7 @@ function EditSplit({ lines, total, update, addLine, laborInputRef }: EditSplitPr
         <div className="flex items-center justify-between border-b border-[var(--color-hairline)] px-4 py-3">
           <span className="text-[13.5px] font-medium text-[var(--color-ink)]">Live preview</span>
           <span className="num text-[11.5px] uppercase tracking-wide text-[var(--color-ink-3)]">
-            INV-1041
+            {invoiceLabel}
           </span>
         </div>
 
@@ -754,7 +868,7 @@ function EditSplit({ lines, total, update, addLine, laborInputRef }: EditSplitPr
 
         <div className="m-4 rounded-[8px] bg-[var(--color-accent-tint)] px-4 py-3 text-[12px] leading-relaxed text-[var(--color-ink-2)]">
           <span className="font-medium text-[var(--color-ink)]">Net 30</span> · due Jul 19, 2026.
-          Reference <span className="num text-[var(--color-ink)]">INV-1041</span>.
+          Reference <span className="num text-[var(--color-ink)]">{invoiceLabel}</span>.
         </div>
       </div>
     </div>
@@ -764,8 +878,26 @@ function EditSplit({ lines, total, update, addLine, laborInputRef }: EditSplitPr
 /* ============================================================
    Step 5 — APPROVED
    ============================================================ */
-function Step5Approved({ onReset }: { onReset: () => void }) {
+interface Step5Props {
+  onReset: () => void;
+  wo: WorkOrder | null;
+}
+
+function Step5Approved({ onReset, wo }: Step5Props) {
   const [sent, setSent] = useState(false);
+
+  const total = useMemo(() => {
+    const items = wo?.invoice?.line_items;
+    if (!items?.length) return 425; // mock fallback
+    return items.reduce((s, raw) => {
+      const qty = Number(raw.qty ?? raw.quantity ?? 1);
+      const rate = Number(raw.rate ?? raw.unit_price ?? raw.price ?? 0);
+      const amount = Number(raw.amount ?? qty * rate);
+      return s + amount;
+    }, 0);
+  }, [wo?.invoice?.line_items]);
+
+  const invoiceLabel = wo?.invoice?.invoice_id ?? "INV-1041";
 
   return (
     <div className="flex flex-col gap-6">
@@ -781,7 +913,7 @@ function Step5Approved({ onReset }: { onReset: () => void }) {
             Maplewood HVAC <span className="text-[var(--color-ink-3)]">·</span>{" "}
             <span className="num">WO-1041</span>{" "}
             <span className="text-[var(--color-ink-3)]">·</span>{" "}
-            <span className="num text-[var(--color-ink)]">$425.00</span>
+            <span className="num text-[var(--color-ink)]">{fmtMoney(total)}</span>
           </div>
         </div>
       </div>
@@ -824,6 +956,12 @@ function Step5Approved({ onReset }: { onReset: () => void }) {
             Run again
           </button>
         </div>
+
+        {wo?.invoice?.invoice_id ? (
+          <p className="mt-4 text-[12px] text-[var(--color-ink-3)]">
+            Invoice <span className="num">{invoiceLabel}</span> saved to work order.
+          </p>
+        ) : null}
       </div>
     </div>
   );
@@ -834,13 +972,70 @@ function Step5Approved({ onReset }: { onReset: () => void }) {
    ============================================================ */
 interface WorkOrderToInvoiceFlowProps {
   onBack?: () => void;
+  workOrderId?: string | null;
 }
 
 export default function WorkOrderToInvoiceFlow({
   onBack,
+  workOrderId,
 }: WorkOrderToInvoiceFlowProps) {
   const [step, setStep] = useState<StepKey>("inbound");
+  const [wo, setWo] = useState<WorkOrder | null>(null);
+  const [approving, setApproving] = useState(false);
   const stage = STEP_TO_STAGE[step];
+
+  // Poll getWorkOrder every 500ms while on step 1, until classification is populated.
+  // The intake agent runs after WO creation; we poll to pick up its output.
+  useEffect(() => {
+    if (!workOrderId || step !== "inbound") return;
+
+    let cancelled = false;
+    let tid: ReturnType<typeof setTimeout>;
+
+    const poll = async () => {
+      try {
+        const data = await getWorkOrder(workOrderId);
+        if (cancelled) return;
+        setWo(data);
+        if (!data.classification) {
+          tid = setTimeout(poll, 500);
+        }
+      } catch {
+        if (!cancelled) tid = setTimeout(poll, 2000);
+      }
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(tid);
+    };
+  }, [workOrderId, step]);
+
+  // Approve a stage then advance to the next step.
+  // If no workOrderId or the call fails, silently advance (mock fallback).
+  const advance = useCallback(
+    async (
+      approvalStage: "intake" | "scheduling" | "invoice" | null,
+      nextStep: StepKey,
+    ) => {
+      if (approvalStage && workOrderId) {
+        setApproving(true);
+        try {
+          const updated = await approveStage(workOrderId, approvalStage);
+          setWo(updated);
+        } catch (err) {
+          console.warn("approveStage failed, continuing in mock mode:", err);
+        } finally {
+          setApproving(false);
+        }
+      }
+      setStep(nextStep);
+    },
+    [workOrderId],
+  );
+
+  const pollingClassification = !!workOrderId && step === "inbound" && !wo?.classification;
 
   return (
     <div className="flex flex-col gap-7">
@@ -861,15 +1056,34 @@ export default function WorkOrderToInvoiceFlow({
       </div>
 
       {step === "inbound" ? (
-        <Step1Inbound onNext={() => setStep("schedule")} />
+        <Step1Inbound
+          onNext={() => advance("intake", "schedule")}
+          wo={wo}
+          polling={pollingClassification}
+          approving={approving}
+        />
       ) : step === "schedule" ? (
-        <Step2Schedule onNext={() => setStep("postjob")} />
+        <Step2Schedule
+          onNext={() => advance("scheduling", "postjob")}
+          wo={wo}
+          approving={approving}
+        />
       ) : step === "postjob" ? (
         <Step3PostJob onNext={() => setStep("invoice")} />
       ) : step === "invoice" ? (
-        <Step4Invoice onApprove={() => setStep("approved")} />
+        <Step4Invoice
+          onApprove={() => advance("invoice", "approved")}
+          wo={wo}
+          approving={approving}
+        />
       ) : (
-        <Step5Approved onReset={() => setStep("inbound")} />
+        <Step5Approved
+          onReset={() => {
+            setStep("inbound");
+            setWo(null);
+          }}
+          wo={wo}
+        />
       )}
     </div>
   );

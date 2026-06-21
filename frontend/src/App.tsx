@@ -6,19 +6,34 @@ import NeedsYou from "./components/NeedsYou";
 import Clients from "./components/Clients";
 import WorkOrders from "./components/WorkOrders";
 import WorkOrderToInvoiceFlow from "./components/invoice-flow/WorkOrderToInvoiceFlow";
-
-// NOTE: The typed API client and the legacy intake/scheduling/invoicing views
-// remain available in `./api/client` and `./components/*View.tsx`. The new
-// dashboard runs on mock data; we'll wire the flow into the real
-// createWorkOrder / approveStage calls in a follow-up.
+import { createWorkOrder } from "./api/client";
 
 type View = "dashboard" | "invoice-flow";
 
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
+  const [workOrderId, setWorkOrderId] = useState<string | null>(null);
 
-  const startFlow = () => setView("invoice-flow");
-  const backToDashboard = () => setView("dashboard");
+  const startFlowWithFile = async (file: File) => {
+    let rawRequest: string;
+    if (file.name.endsWith(".txt") || file.name.endsWith(".eml")) {
+      rawRequest = await file.text().catch(() => file.name);
+    } else {
+      rawRequest = file.name;
+    }
+    try {
+      const wo = await createWorkOrder(rawRequest);
+      setWorkOrderId(wo.id);
+    } catch {
+      setWorkOrderId(null); // mock fallback if backend unreachable
+    }
+    setView("invoice-flow");
+  };
+
+  const backToDashboard = () => {
+    setView("dashboard");
+    setWorkOrderId(null);
+  };
 
   return (
     <div className="flex min-h-screen items-start bg-white text-[var(--color-ink)]">
@@ -33,15 +48,15 @@ export default function App() {
               </h1>
 
               <div className="flex flex-col gap-7">
-                <DropZone onFile={startFlow} />
+                <DropZone onFile={startFlowWithFile} />
                 <SearchBar />
                 <NeedsYou />
                 <Clients />
-                <WorkOrders onViewOrder={startFlow} />
+                <WorkOrders onViewOrder={() => setView("invoice-flow")} />
               </div>
             </>
           ) : (
-            <WorkOrderToInvoiceFlow onBack={backToDashboard} />
+            <WorkOrderToInvoiceFlow onBack={backToDashboard} workOrderId={workOrderId} />
           )}
         </div>
       </main>

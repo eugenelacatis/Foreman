@@ -79,7 +79,7 @@ export default function SchedulingView({
           </h3>
           <textarea
             readOnly
-            value={s.outreach_draft}
+            value={typeof s.outreach_draft === "string" ? s.outreach_draft : JSON.stringify(s.outreach_draft, null, 2)}
             rows={6}
             className="w-full text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none font-mono leading-relaxed focus:outline-none"
           />
