@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import BrandedInvoice from "./BrandedInvoice";
 import PricingView from "./PricingView";
+import InboundPartsView from "./InboundPartsView";
 import { getWorkOrder, approveStage } from "../../api/client";
 import type { WorkOrder } from "../../api/client";
 
@@ -378,12 +379,7 @@ function Step1Inbound({ onNext, wo, polling, approving }: Step1Props) {
         <ReasoningCard items={items} />
       </div>
 
-      <div className="flex items-center gap-2 rounded-[10px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-3 text-[13px] text-[var(--color-ink-2)]">
-        <span className="grid h-4 w-4 place-items-center rounded-full bg-white text-[var(--color-ink-3)]">
-          <span className="text-[10px] font-bold">i</span>
-        </span>
-        No parts or invoice yet — the job hasn't happened.
-      </div>
+      <InboundPartsView />
 
       <div className="flex justify-end">
         <button
