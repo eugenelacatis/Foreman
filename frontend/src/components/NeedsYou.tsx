@@ -39,22 +39,26 @@ function Tag({ children }: { children: ReactNode }) {
 
 function Button({
   variant,
+  onClick,
   children,
 }: {
   variant: ButtonVariant;
+  onClick?: () => void;
   children: ReactNode;
 }) {
   const base =
     'inline-flex items-center justify-center rounded-lg px-3 h-8 text-[13px] font-medium transition-colors'
   if (variant === 'solid') {
     return (
-      <button className={`${base} bg-[var(--color-accent)] text-white hover:bg-[#1d4fd1]`}>
+      <button type="button" onClick={onClick} className={`${base} bg-[var(--color-accent)] text-white hover:bg-[#1d4fd1]`}>
         {children}
       </button>
     )
   }
   return (
     <button
+      type="button"
+      onClick={onClick}
       className={`${base} border border-[var(--color-hairline)] text-[var(--color-ink)] hover:bg-[#f7f8fa]`}
     >
       {children}
@@ -62,10 +66,15 @@ function Button({
   )
 }
 
-export default function NeedsYou() {
+interface NeedsYouProps {
+  onApprove?: (id: string) => void;
+  onView?: (id: string) => void;
+}
+
+export default function NeedsYou({ onApprove, onView }: NeedsYouProps) {
   return (
     <section>
-      <SectionHeading title="Current tasks" badge={3} />
+      <SectionHeading title="Current tasks" badge={items.length} />
       <div className="overflow-hidden rounded-[10px] border border-[var(--color-hairline)] bg-white">
         {items.map((item, i) => (
           <div
@@ -84,7 +93,16 @@ export default function NeedsYou() {
               </div>
               <p className="mt-0.5 text-[13px] text-[var(--color-ink-2)]">{item.note}</p>
             </div>
-            <Button variant={item.cta.variant}>{item.cta.label}</Button>
+            <Button
+              variant={item.cta.variant}
+              onClick={() =>
+                item.cta.label === "Approve"
+                  ? onApprove?.(item.id)
+                  : onView?.(item.id)
+              }
+            >
+              {item.cta.label}
+            </Button>
           </div>
         ))}
       </div>

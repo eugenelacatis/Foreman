@@ -3,6 +3,7 @@ import { Mic } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import DropZone from "./components/DropZone";
 import SearchBar from "./components/SearchBar";
+import type { SearchResult } from "./components/SearchBar";
 import NeedsYou from "./components/NeedsYou";
 import Clients from "./components/Clients";
 import WorkOrders from "./components/WorkOrders";
@@ -20,7 +21,7 @@ export default function App() {
   const [showVoice, setShowVoice] = useState(false);
 
   const startFlowWithFile = async (file: File) => {
-    setFileName(file.name);
+    setIntakeLoading(true);
     let rawRequest: string;
     if (file.name.endsWith(".txt") || file.name.endsWith(".eml")) {
       rawRequest = await file.text().catch(() => file.name);
@@ -29,11 +30,10 @@ export default function App() {
     }
     try {
       const wo = await createWorkOrder(rawRequest);
-      setWorkOrderId(wo.id);
+      openFlow(wo.id, "inbound", file.name);
     } catch {
       setWorkOrderId(null);
     }
-    setView("invoice-flow");
   };
 
   const startFlowWithVoice = (wo: WorkOrder) => {
@@ -47,6 +47,7 @@ export default function App() {
     setView("dashboard");
     setWorkOrderId(null);
     setFileName(null);
+    setBackendError(null);
   };
 
   return (
@@ -57,9 +58,42 @@ export default function App() {
         <div className="mx-auto w-full max-w-[1100px] px-5 sm:px-8 lg:px-12 py-8 lg:py-10">
           {view === "dashboard" ? (
             <>
-              <h1 className="font-display mb-7 text-[24px] font-semibold tracking-tight text-[var(--color-ink)]">
+              {/* Page label — quiet, not competing with content below */}
+              <p className="mb-6 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
                 Dashboard
-              </h1>
+              </p>
+
+              <div className="flex flex-col gap-8">
+                {/* Primary focal point — things that need action right now */}
+                <NeedsYou
+                  onApprove={() => openFlow(null, "invoice")}
+                  onView={() => openFlow(null, "inbound")}
+                />
+
+                {/* Divider */}
+                <div className="h-px bg-[var(--color-hairline)]" />
+
+                {/* New intake — secondary, below the queue */}
+                <section>
+                  <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
+                    New work order
+                  </p>
+                  <DropZone onFile={startFlowWithFile} onText={startFlowWithText} loading={intakeLoading} />
+                </section>
+
+                {/* Work order history with its own filter */}
+                <section>
+                  <SearchBar
+                    onSelect={(r: SearchResult) => {
+                      if (r.type === "workOrder") openFlow(r.id, "inbound", r.title);
+                    }}
+                  />
+                  <div className="mt-4">
+                    <WorkOrders
+                      onViewOrder={(row) => openFlow(row.id, "inbound", row.title)}
+                    />
+                  </div>
+                </section>
 
               <div className="flex flex-col gap-7">
                 <div className="flex flex-col gap-3">
@@ -83,11 +117,16 @@ export default function App() {
                 <SearchBar />
                 <NeedsYou />
                 <Clients />
-                <WorkOrders onViewOrder={() => setView("invoice-flow")} />
               </div>
             </>
           ) : (
-            <WorkOrderToInvoiceFlow onBack={backToDashboard} workOrderId={workOrderId} fileName={fileName} />
+            <WorkOrderToInvoiceFlow
+              onBack={backToDashboard}
+              workOrderId={workOrderId}
+              fileName={fileName}
+              initialStep={initialStep}
+              backendError={backendError}
+            />
           )}
         </div>
       </main>

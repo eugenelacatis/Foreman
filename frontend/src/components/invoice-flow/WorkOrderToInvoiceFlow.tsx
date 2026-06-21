@@ -14,6 +14,7 @@ import {
   Wrench,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
 import BrandedInvoice from "./BrandedInvoice";
 import PricingView from "./PricingView";
@@ -25,7 +26,7 @@ import type { WorkOrder } from "../../api/client";
    Shared types
    ============================================================ */
 type StageKey = "inbound" | "schedule" | "draft" | "approve";
-type StepKey =
+export type StepKey =
   | "inbound"
   | "schedule"
   | "postjob"
@@ -353,9 +354,10 @@ interface Step1Props {
   approving: boolean;
   fileName?: string | null;
   rawRequest?: string | null;
+  pollError?: boolean;
 }
 
-function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest }: Step1Props) {
+function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest, pollError = false }: Step1Props) {
   // Mock animation fallback: runs only when there's no real classification yet
   const [mockDone, setMockDone] = useState(false);
   useEffect(() => {
@@ -394,11 +396,11 @@ function Step1Inbound({ onNext, wo, polling, approving, fileName, rawRequest }: 
           <span className="grid h-4 w-4 place-items-center rounded-full bg-[var(--color-sent-tint)] text-[var(--color-sent-ink)]">
             <Check size={10} strokeWidth={3} />
           </span>
-        ) : (
+        ) : !pollError ? (
           <Loader2 size={15} strokeWidth={2} className="animate-spin text-[var(--color-accent)]" />
-        )}
+        ) : null}
         <span className="font-medium text-[var(--color-ink)]">
-          {wo?.classification ? "Work order read" : "Reading the work order…"}
+          {wo?.classification ? "Work order read" : pollError ? "Demo mode" : "Reading the work order…"}
         </span>
         <span className="text-[var(--color-ink-3)]">·</span>
         <span className="text-[var(--color-ink-2)]">
@@ -724,9 +726,10 @@ interface Step4Props {
   onStepBack?: () => void;
   wo: WorkOrder | null;
   approving: boolean;
+  invoiceLoading?: boolean;
 }
 
-function Step4Invoice({ onApprove, onStepBack, wo, approving }: Step4Props) {
+function Step4Invoice({ onApprove, onStepBack, wo, approving, invoiceLoading = false }: Step4Props) {
   const completenessFlags = wo?.classification?.completeness_flags ?? [];
   const laborFlagged = completenessFlags.includes("labor_rate");
 
@@ -822,6 +825,15 @@ function Step4Invoice({ onApprove, onStepBack, wo, approving }: Step4Props) {
           </button>
         </div>
       </div>
+
+      {invoiceLoading && (
+        <div className="flex items-center gap-2 rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-2.5">
+          <Loader2 size={13} strokeWidth={2} className="animate-spin text-[var(--color-accent)]" />
+          <span className="text-[12.5px] text-[var(--color-ink-2)]">
+            Generating invoice — showing draft data
+          </span>
+        </div>
+      )}
 
       {tab === "document" ? (
         <BrandedInvoice lines={lines} invoiceLabel={invoiceLabel} wo={wo} />
@@ -997,7 +1009,7 @@ interface Step5Props {
 }
 
 function Step5Approved({ onReset, onBack, wo }: Step5Props) {
-  const [sent, setSent] = useState(false);
+  const [opened, setOpened] = useState(false);
 
   const total = useMemo(() => {
     const items = wo?.invoice?.line_items;
@@ -1026,6 +1038,31 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
 
   const woRef = wo?.id ? wo.id.slice(0, 8).toUpperCase() : null;
 
+  // Extract email from vendor_email_draft or entities for the mailto link
+  const clientEmail = (() => {
+    const draft = wo?.invoice?.vendor_email_draft ?? "";
+    const toMatch = draft.match(/To:\s*(\S+@\S+)/i);
+    if (toMatch) return toMatch[1];
+    const ents = (wo?.classification?.entities ?? {}) as Record<string, unknown>;
+    for (const k of ["client_email", "customer_email", "email", "to", "dispatch_email"]) {
+      const v = ents[k];
+      if (typeof v === "string" && v.includes("@")) return v.trim();
+    }
+    return null;
+  })();
+
+  const handleSend = () => {
+    const subject = encodeURIComponent(
+      `Invoice ${invoiceLabel}${clientName ? ` — ${clientName}` : ""}`,
+    );
+    const body = encodeURIComponent(
+      wo?.invoice?.vendor_email_draft ??
+        `Please find invoice ${invoiceLabel} attached.\n\nThank you,\nR&K HVAC Services`,
+    );
+    window.open(`mailto:${clientEmail ?? ""}?subject=${subject}&body=${body}`, "_blank");
+    setOpened(true);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start gap-3">
@@ -1047,24 +1084,23 @@ function Step5Approved({ onReset, onBack, wo }: Step5Props) {
       <div className="rounded-[10px] border border-[var(--color-hairline)] bg-white p-5">
         <p className="text-[13.5px] leading-relaxed text-[var(--color-ink-2)]">
           Saved as draft. The agent stops here — you send it.{" "}
-          <span className="text-[var(--color-ink)] font-medium">It never sends on its own.</span>
+          <span className="text-[var(--color-ink)] font-medium">Opens your email app; you control when it sends.</span>
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={sent}
-            onClick={() => setSent(true)}
+            onClick={handleSend}
             className={
               "inline-flex items-center gap-1.5 rounded-[8px] px-3.5 h-9 text-[13px] font-medium transition-colors " +
-              (sent
-                ? "bg-[var(--color-sent-tint)] text-[var(--color-sent-ink)] cursor-default"
+              (opened
+                ? "bg-[var(--color-sent-tint)] text-[var(--color-sent-ink)]"
                 : "bg-[var(--color-accent)] text-white hover:bg-[#1d4fd1]")
             }
           >
-            {sent ? (
+            {opened ? (
               <>
                 <Check size={13} strokeWidth={2.5} />
-                Sent
+                Opened in Mail
               </>
             ) : (
               <>
@@ -1110,16 +1146,22 @@ interface WorkOrderToInvoiceFlowProps {
   onBack?: () => void;
   workOrderId?: string | null;
   fileName?: string | null;
+  initialStep?: StepKey;
+  backendError?: string | null;
 }
 
 export default function WorkOrderToInvoiceFlow({
   onBack,
   workOrderId,
   fileName,
+  initialStep,
+  backendError,
 }: WorkOrderToInvoiceFlowProps) {
-  const [step, setStep] = useState<StepKey>("inbound");
+  const [step, setStep] = useState<StepKey>(initialStep ?? "inbound");
   const [wo, setWo] = useState<WorkOrder | null>(null);
   const [approving, setApproving] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(backendError ?? null);
+  const [pollError, setPollError] = useState(false);
   const stage = STEP_TO_STAGE[step];
 
   // Poll getWorkOrder every 500ms while on step 1, until classification is populated.
@@ -1129,11 +1171,14 @@ export default function WorkOrderToInvoiceFlow({
 
     let cancelled = false;
     let tid: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 5;
 
     const poll = async () => {
       try {
         const data = await getWorkOrder(workOrderId);
         if (cancelled) return;
+        attempts = 0;
         setWo(data);
         if (!data.classification) {
           tid = setTimeout(poll, 500);
@@ -1143,7 +1188,14 @@ export default function WorkOrderToInvoiceFlow({
           tid = setTimeout(poll, 1000);
         }
       } catch {
-        if (!cancelled) tid = setTimeout(poll, 2000);
+        if (cancelled) return;
+        attempts += 1;
+        if (attempts >= MAX_ATTEMPTS) {
+          setPollError(true);
+          setToastMsg("Backend not responding — running in demo mode with sample data.");
+        } else {
+          tid = setTimeout(poll, 2000);
+        }
       }
     };
 
@@ -1155,19 +1207,21 @@ export default function WorkOrderToInvoiceFlow({
   }, [workOrderId, step]);
 
   // Approve a stage then advance to the next step.
-  // If no workOrderId or the call fails, silently advance (mock fallback).
+  // On failure, show a toast and still advance so the demo never hangs.
   const advance = useCallback(
     async (
       approvalStage: "intake" | "scheduling" | "invoice" | null,
       nextStep: StepKey,
     ) => {
+      setToastMsg(null);
       if (approvalStage && workOrderId) {
         setApproving(true);
         try {
           const updated = await approveStage(workOrderId, approvalStage);
           setWo(updated);
         } catch (err) {
-          console.warn("approveStage failed, continuing in mock mode:", err);
+          console.warn("approveStage failed, advancing in demo mode:", err);
+          setToastMsg("Backend unreachable — advancing in demo mode.");
         } finally {
           setApproving(false);
         }
@@ -1177,7 +1231,31 @@ export default function WorkOrderToInvoiceFlow({
     [workOrderId],
   );
 
+  // Poll for invoice when on step "invoice" and the invoice hasn't arrived yet.
+  useEffect(() => {
+    if (!workOrderId || step !== "invoice" || wo?.invoice) return;
+    let cancelled = false;
+    let attempts = 0;
+    let tid: ReturnType<typeof setTimeout>;
+
+    const fetchInvoice = async () => {
+      try {
+        const data = await getWorkOrder(workOrderId);
+        if (cancelled) return;
+        setWo(data);
+        if (!data.invoice) tid = setTimeout(fetchInvoice, 1500);
+      } catch {
+        if (cancelled) return;
+        if (++attempts < 5) tid = setTimeout(fetchInvoice, 2000);
+      }
+    };
+
+    fetchInvoice();
+    return () => { cancelled = true; clearTimeout(tid); };
+  }, [workOrderId, step, wo?.invoice]);
+
   const pollingClassification = !!workOrderId && step === "inbound" && !wo?.classification;
+  const invoiceLoading = !!workOrderId && step === "invoice" && !wo?.invoice;
 
   return (
     <div className="flex flex-col gap-7">
@@ -1197,6 +1275,19 @@ export default function WorkOrderToInvoiceFlow({
         <StageStepper currentStage={stage} onStageJump={(s) => setStep(s)} />
       </div>
 
+      {toastMsg && (
+        <div className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-2.5">
+          <span className="text-[12.5px] text-[var(--color-ink-2)]">{toastMsg}</span>
+          <button
+            type="button"
+            onClick={() => setToastMsg(null)}
+            className="shrink-0 text-[var(--color-ink-3)] transition-colors hover:text-[var(--color-ink)]"
+          >
+            <X size={13} strokeWidth={2} />
+          </button>
+        </div>
+      )}
+
       {step === "inbound" ? (
         <Step1Inbound
           onNext={() => advance("intake", "schedule")}
@@ -1205,6 +1296,7 @@ export default function WorkOrderToInvoiceFlow({
           approving={approving}
           fileName={fileName}
           rawRequest={wo?.raw_request ?? null}
+          pollError={pollError}
         />
       ) : step === "schedule" ? (
         <Step2Schedule
@@ -1225,6 +1317,7 @@ export default function WorkOrderToInvoiceFlow({
           onStepBack={() => setStep("postjob")}
           wo={wo}
           approving={approving}
+          invoiceLoading={invoiceLoading}
         />
       ) : (
         <Step5Approved

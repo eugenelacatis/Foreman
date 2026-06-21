@@ -82,6 +82,7 @@ interface CheckoutResult {
 interface CheckoutState {
   loading: boolean;
   result: CheckoutResult | null;
+  error?: boolean;
 }
 
 /* ============================================================
@@ -95,52 +96,56 @@ const ANTICIPATED_PARTS: PartNeed[] = [
 ];
 
 /* ============================================================
-   Mock data — swap this function body for the real endpoint:
+   Mock data — swap getLocalParts body for the real endpoint:
    POST /api/parts/local { parts, location } → LocalPartsData
    ============================================================ */
-function getLocalParts(_parts: PartNeed[], _location: string): LocalPartsData {
-  return {
-    jobSite: { svgX: 220, svgY: 130 },
-    suppliers: [
-      {
-        id: "s1", name: "ARS Supply Co.", shortName: "ARS",
-        address: "88 Industrial Dr", distanceMi: 0.8,
-        svgX: 90, svgY: 66, openNow: true, isMyAccount: true, isPreferred: true,
-      },
-      {
-        id: "s2", name: "Johnstone Supply", shortName: "Johnstone",
-        address: "210 Commerce Blvd", distanceMi: 1.4,
-        svgX: 346, svgY: 72, openNow: true, isMyAccount: true, isPreferred: false,
-      },
-      {
-        id: "s3", name: "HVAC City", shortName: "HVAC City",
-        address: "5 Depot St", distanceMi: 2.1,
-        svgX: 314, svgY: 198, openNow: true, isMyAccount: false, isPreferred: false,
-      },
-      {
-        id: "s4", name: "Arctic Air Parts", shortName: "Arctic Air",
-        address: "800 Cold Spring Rd", distanceMi: 3.5,
-        svgX: 66, svgY: 196, openNow: false, isMyAccount: false, isPreferred: true,
-      },
-    ],
-    listingsByPart: {
-      cap: [
-        { supplierId: "s4", price: 27.00, inStock: true, stockQty: 4, pickupReady: false, openNow: false },
-        { supplierId: "s1", price: 28.50, inStock: true, stockQty: 6, pickupReady: true, openNow: true },
-        { supplierId: "s2", price: 31.00, inStock: true, stockQty: 12, pickupReady: true, openNow: true },
-      ],
-      con: [
-        { supplierId: "s2", price: 18.50, inStock: true, stockQty: 8, pickupReady: true, openNow: true },
-        { supplierId: "s3", price: 19.75, inStock: true, stockQty: 5, pickupReady: false, openNow: true },
-        { supplierId: "s1", price: 21.00, inStock: true, stockQty: 3, pickupReady: true, openNow: true },
-      ],
-      ref: [
-        { supplierId: "s4", price: 21.00, inStock: true, stockQty: 8, pickupReady: false, openNow: false },
-        { supplierId: "s3", price: 22.50, inStock: true, stockQty: 10, pickupReady: false, openNow: true },
-        { supplierId: "s2", price: 24.00, inStock: true, stockQty: 20, pickupReady: true, openNow: true },
-      ],
+const MOCK_LOCAL_PARTS: LocalPartsData = {
+  jobSite: { svgX: 220, svgY: 130 },
+  suppliers: [
+    {
+      id: "s1", name: "ARS Supply Co.", shortName: "ARS",
+      address: "88 Industrial Dr", distanceMi: 0.8,
+      svgX: 90, svgY: 66, openNow: true, isMyAccount: true, isPreferred: true,
     },
-  };
+    {
+      id: "s2", name: "Johnstone Supply", shortName: "Johnstone",
+      address: "210 Commerce Blvd", distanceMi: 1.4,
+      svgX: 346, svgY: 72, openNow: true, isMyAccount: true, isPreferred: false,
+    },
+    {
+      id: "s3", name: "HVAC City", shortName: "HVAC City",
+      address: "5 Depot St", distanceMi: 2.1,
+      svgX: 314, svgY: 198, openNow: true, isMyAccount: false, isPreferred: false,
+    },
+    {
+      id: "s4", name: "Arctic Air Parts", shortName: "Arctic Air",
+      address: "800 Cold Spring Rd", distanceMi: 3.5,
+      svgX: 66, svgY: 196, openNow: false, isMyAccount: false, isPreferred: true,
+    },
+  ],
+  listingsByPart: {
+    cap: [
+      { supplierId: "s4", price: 27.00, inStock: true, stockQty: 4, pickupReady: false, openNow: false },
+      { supplierId: "s1", price: 28.50, inStock: true, stockQty: 6, pickupReady: true, openNow: true },
+      { supplierId: "s2", price: 31.00, inStock: true, stockQty: 12, pickupReady: true, openNow: true },
+    ],
+    con: [
+      { supplierId: "s2", price: 18.50, inStock: true, stockQty: 8, pickupReady: true, openNow: true },
+      { supplierId: "s3", price: 19.75, inStock: true, stockQty: 5, pickupReady: false, openNow: true },
+      { supplierId: "s1", price: 21.00, inStock: true, stockQty: 3, pickupReady: true, openNow: true },
+    ],
+    ref: [
+      { supplierId: "s4", price: 21.00, inStock: true, stockQty: 8, pickupReady: false, openNow: false },
+      { supplierId: "s3", price: 22.50, inStock: true, stockQty: 10, pickupReady: false, openNow: true },
+      { supplierId: "s2", price: 24.00, inStock: true, stockQty: 20, pickupReady: true, openNow: true },
+    ],
+  },
+};
+
+async function getLocalParts(_parts: PartNeed[], _location: string): Promise<LocalPartsData> {
+  // TODO: replace with POST /api/parts/local { parts, location }
+  await new Promise<void>((r) => setTimeout(r, 700));
+  return MOCK_LOCAL_PARTS;
 }
 
 /* ============================================================
@@ -767,29 +772,38 @@ function OrderSection({
                 </div>
 
                 {/* One checkout button per store — opens URL in new tab; stops at checkout */}
-                <button
-                  type="button"
-                  disabled={cs?.loading}
-                  onClick={() => {
-                    if (cs?.result) {
-                      window.open(cs.result.checkoutUrl, "_blank", "noopener,noreferrer");
-                    } else {
-                      onCheckout(store);
-                    }
-                  }}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3 h-8 text-[12.5px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {cs?.loading ? (
-                    <Loader2 size={12} strokeWidth={2} className="animate-spin" />
-                  ) : cs?.result ? (
-                    <>
-                      <ExternalLink size={12} strokeWidth={2} />
-                      Open checkout
-                    </>
-                  ) : (
-                    "Review & check out"
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <button
+                    type="button"
+                    disabled={cs?.loading}
+                    onClick={() => {
+                      if (cs?.result) {
+                        window.open(cs.result.checkoutUrl, "_blank", "noopener,noreferrer");
+                      } else {
+                        onCheckout(store);
+                      }
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3 h-8 text-[12.5px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {cs?.loading ? (
+                      <Loader2 size={12} strokeWidth={2} className="animate-spin" />
+                    ) : cs?.result ? (
+                      <>
+                        <ExternalLink size={12} strokeWidth={2} />
+                        Open checkout
+                      </>
+                    ) : cs?.error ? (
+                      "Try again"
+                    ) : (
+                      "Review & check out"
+                    )}
+                  </button>
+                  {cs?.error && (
+                    <span className="text-[11px] text-[var(--color-ink-3)]">
+                      Couldn't prepare checkout
+                    </span>
                   )}
-                </button>
+                </div>
               </div>
             </div>
           );
@@ -834,11 +848,28 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
   const [fulfillment, setFulfillment] = useState<Fulfillment>("pickup");
   const [checkoutStates, setCheckoutStates] = useState<Record<string, CheckoutState>>({});
 
-  // Data (stable — getLocalParts is pure mock)
-  const { jobSite, suppliers, listingsByPart } = useMemo(
-    () => getLocalParts(parts, "412 Cedar Court"),
-    [parts],
-  );
+  // Async data — getLocalParts will become a real API call
+  const [localParts, setLocalParts] = useState<LocalPartsData | null>(null);
+  const [partsLoading, setPartsLoading] = useState(true);
+  const [partsError, setPartsError] = useState(false);
+
+  const loadParts = useCallback(async () => {
+    setPartsLoading(true);
+    setPartsError(false);
+    try {
+      const data = await getLocalParts(parts, "412 Cedar Court");
+      setLocalParts(data);
+    } catch {
+      setPartsError(true);
+      setLocalParts(MOCK_LOCAL_PARTS);
+    } finally {
+      setPartsLoading(false);
+    }
+  }, [parts]);
+
+  useEffect(() => { void loadParts(); }, [loadParts]);
+
+  const { jobSite, suppliers, listingsByPart } = localParts ?? MOCK_LOCAL_PARTS;
 
   // Apply filters + sort to listings per part
   const filteredListings = useMemo(() => {
@@ -905,7 +936,7 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
       } catch {
         setCheckoutStates((prev) => ({
           ...prev,
-          [store.storeId]: { loading: false, result: null },
+          [store.storeId]: { loading: false, result: null, error: true },
         }));
       }
     },
@@ -965,7 +996,33 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
         />
       </div>
 
-      {/* ── Main 2-column grid ── */}
+      {partsError && (
+        <div className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-2.5">
+          <span className="text-[12.5px] text-[var(--color-ink-2)]">
+            Couldn't reach parts API — showing demo prices.
+          </span>
+          <button
+            type="button"
+            onClick={() => void loadParts()}
+            className="shrink-0 text-[12px] font-medium text-[var(--color-accent)] hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {partsLoading ? (
+        <div className="flex flex-col gap-4 animate-pulse">
+          <div className="h-[260px] rounded-[10px] bg-[#f0f1f3]" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="h-40 rounded-[10px] bg-[#f0f1f3]" />
+            <div className="h-40 rounded-[10px] bg-[#f0f1f3]" />
+            <div className="h-40 rounded-[10px] bg-[#f0f1f3]" />
+          </div>
+          <div className="h-16 rounded-[10px] bg-[#f0f1f3]" />
+          <div className="h-28 rounded-[10px] bg-[#f0f1f3]" />
+        </div>
+      ) : (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
         {/* Left column: part cards + summary strip */}
         <div className="flex flex-col gap-3">
@@ -1036,6 +1093,7 @@ export default function InboundPartsView({ partsSuggestion }: InboundPartsViewPr
           />
         </div>
       </div>
+      )}
     </div>
   );
 }
