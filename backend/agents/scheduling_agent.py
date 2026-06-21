@@ -28,6 +28,19 @@ client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 MODEL = "claude-sonnet-4-6"
 
+
+def _get_trace_id() -> str | None:
+    try:
+        from opentelemetry import trace
+
+        ctx = trace.get_current_span().get_span_context()
+        if ctx and ctx.trace_id:
+            return format(ctx.trace_id, "032x")
+    except Exception:
+        pass
+    return None
+
+
 SEEDED_PRICES: dict[str, float] = {
     "air filter (16x25x1)": 12.99,
     "thermostat (Honeywell T6 Pro)": 89.99,
@@ -220,4 +233,5 @@ async def run_scheduling(work_order: dict) -> dict:
         "proposed_times": proposed_times,
         "outreach_draft": outreach_draft,
         "parts_suggestion": parts_suggestion,
+        "trace_id": _get_trace_id(),
     }

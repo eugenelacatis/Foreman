@@ -3,13 +3,14 @@ Rehearsal script for the ForemanAI demo flow.
 Requires the local server running at http://localhost:8000.
 Run with: python scripts/demo_flow.py
 """
+
 from __future__ import annotations
 
 import sys
 
 import httpx
 
-BASE = "http://localhost:8000"
+BASE = "http://localhost:8001"
 
 SEEDED_REQUEST = (
     "Repair the HVAC unit at 142 Elm Street. "
@@ -26,6 +27,7 @@ def step(label: str) -> None:
 
 def dump(data: dict) -> None:
     import json
+
     print(json.dumps(data, indent=2))
 
 
@@ -38,7 +40,6 @@ def check(resp: httpx.Response, expected: int = 200) -> dict:
 
 def main() -> None:
     with httpx.Client(base_url=BASE, timeout=60.0) as client:
-
         # 1. Create work order
         step("POST /work-orders — create with seeded request")
         wo = check(
