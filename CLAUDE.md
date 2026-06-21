@@ -21,7 +21,7 @@ If you find yourself wanting to import another agent's module, stop. Talk to the
 - State: Redis. Holds the work-order object and the invoice-history vector index.
 - API contract: FastAPI generates an OpenAPI spec. That spec is the shared interface. Build against it, not against assumptions.
 - Frontend: Vite + React + Tailwind + shadcn/ui.
-- Orchestration: our own async Python coordination is the spine. Orkes Conductor is an OPTIONAL bounty integration layered on top, not the foundation. See "Sponsor integrations."
+- Orchestration: our own async Python coordination is the spine. Orkes Agentspan is an OPTIONAL bounty integration layered on top, not the foundation. See "Sponsor integrations."
 - Safety: ArmorIQ wraps agent actions and enforces the approved plan.
 - Observability: Arize Phoenix traces agent decisions.
 - Parts pricing: Browserbase, behind the parts-suggestion feature only.
@@ -52,15 +52,16 @@ The architecture and agent reasoning are real. External edges that need the outs
 ## Sponsor integrations (priority order)
 
 Load-bearing, build these into the core:
-- Anthropic (the agents)
+- Anthropic (the agents) — frame demo pitch around economic opportunity for field service workers and SMB trades; aspiration + effort count as much as polish
 - Redis (shared state + invoice-history search)
 - ArmorIQ (action safety, the approval gate)
-- Arize Phoenix (tracing)
+- Arize Phoenix (tracing) — label spans meaningfully (gap-fill decisions, consistency check, ArmorIQ checks); judges want evidence it improved the app, not just that it exists
 
 Optional bolt-ons, only if the core is solid. One person, time permitting, no one builds the system around these:
-- Orkes Conductor: wrap the approval step as a Conductor workflow for the bounty.
+- Orkes Agentspan: wrap the approval step as an Agentspan workflow for the bounty.
 - Browserbase: live local pricing behind the parts suggestion, falls back to seeded prices.
 - Fetch.ai: register one agent as a uAgent on Agentverse for the bounty. Do NOT rearchitect around the agent-marketplace model. It is a logo, not a foundation.
+- Sentry: error and crash monitoring on top of Arize Phoenix (which handles LLM tracing). ~15 min to wire up. Add the Python SDK to FastAPI and the JS SDK to the Vite frontend. Tag every captured event with `work_order_id` and `status` so any error links back to the exact order and pipeline stage. Do not touch the agent reasoning or approval flow to add this — it wraps the outside, not the inside.
 
 ## Working rules for four parallel Claude Code sessions
 
@@ -77,4 +78,4 @@ Stage two: integration. Person A finishes first by design and joins the spine ow
 
 ## Hour-4 checkpoint (decide, do not drift)
 
-If Orkes Conductor is not running cleanly by hour 4, drop it to just the single approval workflow or cut it entirely. Losing Orkes loses one bounty, not the project. Do not let any optional sponsor integration block the core.
+If Orkes Agentspan is not running cleanly by hour 4, drop it to just the single approval workflow or cut it entirely. Losing Orkes loses one bounty, not the project. Do not let any optional sponsor integration block the core.

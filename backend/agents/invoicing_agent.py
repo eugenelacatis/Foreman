@@ -15,13 +15,17 @@ logger = logging.getLogger(__name__)
 try:
     from openinference.instrumentation.anthropic import AnthropicInstrumentor
     from phoenix.otel import register
+
     tracer_provider = register(
         project_name="foreman-ai",
-        endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"),
+        endpoint=os.getenv(
+            "PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"
+        ),
     )
     AnthropicInstrumentor().instrument(tracer_provider=tracer_provider)
-except Exception as _exc:
-    logger.warning("Phoenix/Arize unavailable — tracing disabled: %s", _exc)
+    logger.info("Phoenix tracing enabled")
+except Exception as _phoenix_err:
+    logger.warning("Phoenix tracing unavailable: %s", _phoenix_err)
 
 client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
@@ -138,16 +142,20 @@ TOOLS: list[anthropic.types.ToolParam] = [
 
 SYSTEM_PROMPT = (
     "You are the invoicing agent for ForemanAI. "
-    "You receive an enriched work order (with classification and schedule already filled) "
-    "and must produce a complete, accurate invoice. "
-    "Work in this order:\n"
-    "1. Call prefill_invoice with whatever you can derive from the work order.\n"
-    "2. Call flag_missing_fields for anything you cannot determine without the user.\n"
-    "3. If user_message is provided, incorporate it and call check_consistency against history.\n"
-    "4. Once all fields are resolved, call fill_template then draft_vendor_email.\n"
-    "Never skip the human approval gate — fill_template and draft_vendor_email are "
-    "guarded by ArmorIQ and will not run without a valid plan. "
-    "Never respond in plain text alone — always call a tool."
+    "Your job is to produce a complete, accurate invoice from a work order that has already "
+    "been through intake and scheduling. You work in turns with the user to fill any gaps.\n\n"
+    "On the first turn:\n"
+    "1. Call prefill_invoice with every field you can derive from the work order context.\n"
+    "2. Call flag_missing_fields for anything that requires user input (rates, hours, extras).\n"
+    "   Stop here and wait — do not proceed to fill_template until all gaps are resolved.\n\n"
+    "On subsequent turns (when the user has provided missing information):\n"
+    "3. Do NOT call prefill_invoice or flag_missing_fields again — those steps are already done.\n"
+    "4. Call check_consistency, passing the updated draft and the invoice history provided.\n"
+    "5. Call fill_template with the complete invoice data.\n"
+    "6. Call draft_vendor_email to produce the notification draft.\n\n"
+    "fill_template and draft_vendor_email are guarded by ArmorIQ — they require a valid approved "
+    "plan and will not run without human sign-off. Never skip this gate.\n"
+    "Always call a tool — never respond in plain text alone."
 )
 
 _ARMORIQ_GUARDED = {"fill_template", "draft_vendor_email"}
@@ -284,24 +292,40 @@ def _get_history(work_order: dict) -> list[dict]:
         return INVOICE_HISTORY[:3]
 
 
-async def run_invoicing(work_order: dict, user_message: str | None = None) -> dict:
+async def run_invoicing(
+    work_order: dict,
+    user_message: str | None = None,
+    prior_invoice: dict | None = None,
+) -> dict:
     history = _get_history(work_order)
 
-    context_parts = [
-        f"Work order ID: {work_order.get('id', 'UNKNOWN')}",
-        f"Raw request: {work_order.get('raw_request', '')}",
-        f"Classification: {json.dumps(work_order.get('classification', {}))}",
-        f"Schedule: {json.dumps(work_order.get('schedule', {}))}",
-        f"Invoice history ({len(history)} records): {json.dumps(history)}",
-    ]
-    if user_message:
-        context_parts.append(f"User clarification: {user_message}")
+    # Resume from prior conversation if available
+    prior = prior_invoice or {}
+    saved_history: list = prior.get("conversation_history", [])
+    invoice_state: dict = {
+        k: v
+        for k, v in prior.items()
+        if k not in ("conversation_history", "missing_fields")
+        and v not in (None, [], {})
+    }
 
-    messages: list[anthropic.types.MessageParam] = [
-        {"role": "user", "content": "\n\n".join(context_parts)}
-    ]
+    if saved_history and user_message:
+        # Continuing an existing conversation — append the new user message
+        messages: list[anthropic.types.MessageParam] = list(saved_history)
+        messages.append({"role": "user", "content": user_message})
+    else:
+        # Fresh start — build full context as the opening user turn
+        context_parts = [
+            f"Work order ID: {work_order.get('id', 'UNKNOWN')}",
+            f"Raw request: {work_order.get('raw_request', '')}",
+            f"Classification: {json.dumps(work_order.get('classification', {}))}",
+            f"Schedule: {json.dumps(work_order.get('schedule', {}))}",
+            f"Invoice history ({len(history)} records): {json.dumps(history)}",
+        ]
+        if user_message:
+            context_parts.append(f"User clarification: {user_message}")
+        messages = [{"role": "user", "content": "\n\n".join(context_parts)}]
 
-    invoice_state: dict = {}
     question_for_user: str | None = None
 
     while True:
@@ -376,15 +400,15 @@ async def run_invoicing(work_order: dict, user_message: str | None = None) -> di
         if missing and user_message is None:
             break
 
+    still_missing = invoice_state.get("missing_fields", [])
     result: dict = {
         "invoice": invoice_state,
-        "status": "PENDING_USER_INPUT"
-        if invoice_state.get("missing_fields") and not user_message
-        else "COMPLETE",
+        "conversation_history": messages,
+        "status": "PENDING_USER_INPUT" if still_missing else "COMPLETE",
     }
     if question_for_user:
         result["question_for_user"] = question_for_user
-    if invoice_state.get("missing_fields"):
-        result["missing_fields"] = invoice_state["missing_fields"]
+    if still_missing:
+        result["missing_fields"] = still_missing
 
     return result
