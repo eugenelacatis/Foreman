@@ -132,7 +132,13 @@ function FileChip({ name = FILE_NAME }: { name?: string }) {
 /* ============================================================
    Stage stepper (top progress row)
    ============================================================ */
-function StageStepper({ currentStage }: { currentStage: StageKey }) {
+function StageStepper({
+  currentStage,
+  onStageJump,
+}: {
+  currentStage: StageKey;
+  onStageJump: (step: StepKey) => void;
+}) {
   const currentIdx = STAGES.findIndex((s) => s.key === currentStage);
 
   return (
@@ -140,32 +146,49 @@ function StageStepper({ currentStage }: { currentStage: StageKey }) {
       {STAGES.map((s, i) => {
         const done = i < currentIdx;
         const active = i === currentIdx;
+        const badge = (
+          <span
+            className={
+              "grid h-5 w-5 place-items-center rounded-full text-[11px] font-medium leading-none transition-colors " +
+              (done || active
+                ? "bg-[var(--color-accent)] text-white"
+                : "border border-[var(--color-hairline)] bg-white text-[var(--color-ink-3)]")
+            }
+          >
+            {done ? <Check size={11} strokeWidth={3} /> : <span className="num">{i + 1}</span>}
+          </span>
+        );
+        const label = (
+          <span
+            className={
+              "whitespace-nowrap text-[12.5px] font-medium transition-colors " +
+              (active
+                ? "text-[var(--color-ink)]"
+                : done
+                  ? "text-[var(--color-ink-2)] group-hover:text-[var(--color-accent)]"
+                  : "text-[var(--color-ink-3)]")
+            }
+          >
+            {s.label}
+          </span>
+        );
         return (
           <div key={s.key} className="flex items-center gap-2 sm:gap-3">
-            <div className="flex items-center gap-2">
-              <span
-                className={
-                  "grid h-5 w-5 place-items-center rounded-full text-[11px] font-medium leading-none transition-colors " +
-                  (done || active
-                    ? "bg-[var(--color-accent)] text-white"
-                    : "border border-[var(--color-hairline)] bg-white text-[var(--color-ink-3)]")
-                }
+            {done ? (
+              <button
+                type="button"
+                onClick={() => onStageJump(s.steps[0] as StepKey)}
+                className="group flex items-center gap-2"
               >
-                {done ? <Check size={11} strokeWidth={3} /> : <span className="num">{i + 1}</span>}
-              </span>
-              <span
-                className={
-                  "whitespace-nowrap text-[12.5px] font-medium " +
-                  (active
-                    ? "text-[var(--color-ink)]"
-                    : done
-                      ? "text-[var(--color-ink-2)]"
-                      : "text-[var(--color-ink-3)]")
-                }
-              >
-                {s.label}
-              </span>
-            </div>
+                {badge}
+                {label}
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                {badge}
+                {label}
+              </div>
+            )}
             {i < STAGES.length - 1 ? (
               <span
                 className={
@@ -404,6 +427,7 @@ function Step1Inbound({ onNext, wo, polling, approving }: Step1Props) {
    ============================================================ */
 interface Step2Props {
   onNext: () => void;
+  onBack?: () => void;
   wo: WorkOrder | null;
   approving: boolean;
 }
@@ -414,7 +438,7 @@ const MOCK_SLOTS = [
   { id: "thu", label: "Thu · 2:00 PM" },
 ];
 
-function Step2Schedule({ onNext, wo, approving }: Step2Props) {
+function Step2Schedule({ onNext, onBack, wo, approving }: Step2Props) {
   const schedule = wo?.schedule;
 
   const slots = useMemo(() => {
@@ -536,7 +560,17 @@ function Step2Schedule({ onNext, wo, approving }: Step2Props) {
         </div>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1 text-[13px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
+          >
+            <ChevronLeft size={14} strokeWidth={2} />
+            Back to Inbound
+          </button>
+        ) : <span />}
         <button
           type="button"
           onClick={onNext}
@@ -557,7 +591,7 @@ function Step2Schedule({ onNext, wo, approving }: Step2Props) {
 /* ============================================================
    Step 3 — POST-JOB READING (email + voice note)
    ============================================================ */
-function Step3PostJob({ onNext }: { onNext: () => void }) {
+function Step3PostJob({ onNext, onBack }: { onNext: () => void; onBack?: () => void }) {
   const [items, setItems] = useState<ReasoningItem[]>([
     { state: "done", label: "Re-read the work order" },
     { state: "done", label: "Heard the voice note" },
@@ -606,7 +640,17 @@ function Step3PostJob({ onNext }: { onNext: () => void }) {
         <ReasoningCard items={items} />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-3">
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1 text-[13px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
+          >
+            <ChevronLeft size={14} strokeWidth={2} />
+            Back to Schedule
+          </button>
+        ) : <span />}
         <button
           type="button"
           onClick={onNext}
@@ -627,12 +671,12 @@ type InvoiceTab = "document" | "edit" | "pricing";
 
 interface Step4Props {
   onApprove: () => void;
-  onBack?: () => void;
+  onStepBack?: () => void;
   wo: WorkOrder | null;
   approving: boolean;
 }
 
-function Step4Invoice({ onApprove, onBack, wo, approving }: Step4Props) {
+function Step4Invoice({ onApprove, onStepBack, wo, approving }: Step4Props) {
   const completenessFlags = wo?.classification?.completeness_flags ?? [];
   const laborFlagged = completenessFlags.includes("labor_rate");
 
@@ -675,24 +719,13 @@ function Step4Invoice({ onApprove, onBack, wo, approving }: Step4Props) {
     <div className="flex flex-col gap-5">
       {/* ── Action bar ── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        {/* Left: back link (document tab only) */}
-        {onBack && tab === "document" ? (
-          <button
-            type="button"
-            onClick={onBack}
-            className="inline-flex items-center gap-1 text-[13px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
-          >
-            <ChevronLeft size={14} strokeWidth={2} />
-            Back to dashboard
-          </button>
-        ) : (
-          <div className="flex flex-wrap items-baseline gap-2">
-            <div className="font-display text-[17px] font-semibold tracking-tight text-[var(--color-ink)]">
-              Invoice draft
-            </div>
-            <span className="num text-[13px] text-[var(--color-ink-3)]">· {invoiceLabel}</span>
+        {/* Left: title */}
+        <div className="flex flex-wrap items-baseline gap-2">
+          <div className="font-display text-[17px] font-semibold tracking-tight text-[var(--color-ink)]">
+            Invoice draft
           </div>
-        )}
+          <span className="num text-[13px] text-[var(--color-ink-3)]">· {invoiceLabel}</span>
+        </div>
 
         {/* Center: tab toggle */}
         <div className="flex items-center rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] p-0.5">
@@ -713,19 +746,31 @@ function Step4Invoice({ onApprove, onBack, wo, approving }: Step4Props) {
           ))}
         </div>
 
-        {/* Right: approve */}
-        <button
-          type="button"
-          onClick={onApprove}
-          disabled={approving}
-          className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {approving ? (
-            <Loader2 size={13} strokeWidth={2} className="animate-spin" />
+        {/* Right: step-back + approve */}
+        <div className="flex items-center gap-3">
+          {onStepBack ? (
+            <button
+              type="button"
+              onClick={onStepBack}
+              className="inline-flex items-center gap-1 text-[13px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
+            >
+              <ChevronLeft size={14} strokeWidth={2} />
+              Back to Post-job
+            </button>
           ) : null}
-          Approve invoice
-          {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
-        </button>
+          <button
+            type="button"
+            onClick={onApprove}
+            disabled={approving}
+            className="inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1] disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {approving ? (
+              <Loader2 size={13} strokeWidth={2} className="animate-spin" />
+            ) : null}
+            Approve invoice
+            {!approving ? <ChevronRight size={14} strokeWidth={2.25} /> : null}
+          </button>
+        </div>
       </div>
 
       {tab === "document" ? (
@@ -897,10 +942,11 @@ function EditSplit({ lines, total, update, addLine, laborInputRef, invoiceLabel 
    ============================================================ */
 interface Step5Props {
   onReset: () => void;
+  onBack?: () => void;
   wo: WorkOrder | null;
 }
 
-function Step5Approved({ onReset, wo }: Step5Props) {
+function Step5Approved({ onReset, onBack, wo }: Step5Props) {
   const [sent, setSent] = useState(false);
 
   const total = useMemo(() => {
@@ -972,6 +1018,16 @@ function Step5Approved({ onReset, wo }: Step5Props) {
             <RotateCcw size={13} strokeWidth={2} />
             Run again
           </button>
+          {onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center gap-1 text-[13px] text-[var(--color-ink-2)] transition-colors hover:text-[var(--color-ink)]"
+            >
+              <ChevronLeft size={14} strokeWidth={2} />
+              Back to dashboard
+            </button>
+          ) : null}
         </div>
 
         {wo?.invoice?.invoice_id ? (
@@ -1069,7 +1125,7 @@ export default function WorkOrderToInvoiceFlow({
         ) : (
           <span />
         )}
-        <StageStepper currentStage={stage} />
+        <StageStepper currentStage={stage} onStageJump={(s) => setStep(s)} />
       </div>
 
       {step === "inbound" ? (
@@ -1082,15 +1138,19 @@ export default function WorkOrderToInvoiceFlow({
       ) : step === "schedule" ? (
         <Step2Schedule
           onNext={() => advance("scheduling", "postjob")}
+          onBack={() => setStep("inbound")}
           wo={wo}
           approving={approving}
         />
       ) : step === "postjob" ? (
-        <Step3PostJob onNext={() => setStep("invoice")} />
+        <Step3PostJob
+          onNext={() => setStep("invoice")}
+          onBack={() => setStep("schedule")}
+        />
       ) : step === "invoice" ? (
         <Step4Invoice
           onApprove={() => advance("invoice", "approved")}
-          onBack={onBack}
+          onStepBack={() => setStep("postjob")}
           wo={wo}
           approving={approving}
         />
@@ -1100,6 +1160,7 @@ export default function WorkOrderToInvoiceFlow({
             setStep("inbound");
             setWo(null);
           }}
+          onBack={onBack}
           wo={wo}
         />
       )}
