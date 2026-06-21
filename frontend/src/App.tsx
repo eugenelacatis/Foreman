@@ -9,10 +9,12 @@ import WorkOrders from "./components/WorkOrders";
 import WorkOrderToInvoiceFlow from "./components/invoice-flow/WorkOrderToInvoiceFlow";
 import type { StepKey } from "./components/invoice-flow/WorkOrderToInvoiceFlow";
 import VoiceIntake from "./components/VoiceIntake";
+import ClientsView from "./components/ClientsView";
+import ApprovalsView from "./components/ApprovalsView";
 import { createWorkOrder } from "./api/client";
 import type { WorkOrder } from "./api/client";
 
-type View = "dashboard" | "invoice-flow";
+type View = "dashboard" | "invoice-flow" | "clients" | "approvals";
 
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
@@ -22,6 +24,7 @@ export default function App() {
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
   const [initialStep, setInitialStep] = useState<StepKey>("inbound");
+  const [pendingApprovals, setPendingApprovals] = useState(3);
 
   const openFlow = (id: string | null, step: StepKey, title?: string | null) => {
     setWorkOrderId(id);
@@ -74,11 +77,26 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen items-start bg-white text-[var(--color-ink)]">
-      <Sidebar />
+      <Sidebar
+        activeKey={view === "invoice-flow" ? "dashboard" : view}
+        onNav={(key) => {
+          if (key === "clients") setView("clients");
+          else if (key === "approvals") setView("approvals");
+          else if (key === "dashboard") backToDashboard();
+        }}
+        approvalsCount={pendingApprovals}
+      />
 
       <main className="flex-1 min-w-0">
         <div className="mx-auto w-full max-w-[1100px] px-5 sm:px-8 lg:px-12 py-8 lg:py-10">
-          {view === "dashboard" ? (
+          {view === "approvals" ? (
+            <ApprovalsView
+              onBack={backToDashboard}
+              onSent={() => setPendingApprovals((p) => Math.max(0, p - 1))}
+            />
+          ) : view === "clients" ? (
+            <ClientsView />
+          ) : view === "dashboard" ? (
             <>
               <p className="mb-6 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
                 Dashboard
