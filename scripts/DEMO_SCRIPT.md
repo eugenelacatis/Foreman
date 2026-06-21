@@ -100,6 +100,9 @@ These are the actual mechanisms -- use them if a judge asks how it works, or wea
 | **Redis** | Two things: the work-order object is stored as JSON in Redis and every agent reads/writes it directly -- that's how they coordinate without calling each other. The invoice history is a vector index in Redis Stack -- the consistency check does a similarity search against past invoices to flag rate anomalies. | Step 3, when LABOR_RATE_HIGH fires -- that flag comes from a Redis vector search, not a hardcoded rule. |
 | **ArmorIQ** | `sign_plan` registers the approved plan at the start of the invoicing session. `check_action` runs before every committing action -- fill template, draft email. If the action isn't in the signed plan, it blocks. DEMO_BLOCK is hardwired to always trigger a block so we can show it reliably. | Step 4. If a judge wants to see the code, `backend/agents/armoriq_client.py`. |
 | **Arize Phoenix** | `openinference.instrumentation.anthropic` auto-instruments every Claude API call -- input, output, token count, latency. On top of that we add manual spans for `invoicing.gap_fill_turn`, `invoicing.consistency_check`, and `invoicing.armoriq_check` with custom attributes like `flags_count` and `turn_number`. Every span links back to the work order via `trace_id`. | The close. Switch to http://localhost:6006 and show the span tree for the invoicing session. |
+| **Deepgram** | [Harshita to fill in -- what does it do, where does it appear in the flow, what should the presenter say and show?] | [Harshita to fill in] |
+| **Browserbase** | [Michelle to fill in -- parts supplier map near contractor/work order location, what should the presenter say and show?] | [Michelle to fill in] |
+| **Orkes / Fetch.ai** | [Bhoomika to fill in -- which one landed, what does it do, where does it appear, what should the presenter say and show?] | [Bhoomika to fill in] |
 
 ---
 
