@@ -105,9 +105,9 @@ export default function VoiceIntake({ onComplete, onClose }: VoiceIntakeProps) {
         return;
       }
 
-      // Connect WebSocket
+      // Connect WebSocket through Vite proxy
       const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${protocol}//127.0.0.1:8001/ws/work-orders/voice`);
+      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/work-orders/voice`);
       wsRef.current = ws;
       ws.binaryType = "arraybuffer";
 
