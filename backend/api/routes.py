@@ -36,6 +36,8 @@ async def create_work_order(raw_request: str = Body(..., embed=True)) -> WorkOrd
     await save_work_order(wo)
     sentry_sdk.set_tag("work_order_id", wo.id)
     sentry_sdk.set_tag("work_order_status", wo.status)
+    wo = await _run_intake_stage(wo)
+    await save_work_order(wo)
     return wo
 
 

@@ -802,7 +802,22 @@ function OrderSection({
 /* ============================================================
    Main component
    ============================================================ */
-export default function InboundPartsView() {
+interface InboundPartsViewProps {
+  partsSuggestion?: Array<Record<string, unknown>>;
+}
+
+export default function InboundPartsView({ partsSuggestion }: InboundPartsViewProps) {
+  const parts: PartNeed[] = useMemo(() => {
+    if (partsSuggestion?.length) {
+      return partsSuggestion.map((p, i) => ({
+        id: `p-${i}`,
+        name: String(p.name ?? `Part ${i + 1}`),
+        qty: Number(p.qty ?? 1),
+      }));
+    }
+    return ANTICIPATED_PARTS;
+  }, [partsSuggestion]);
+
   // Filter state
   const [distance, setDistance] = useState<DistanceOpt>(25);
   const [sort, setSort] = useState<SortOpt>("cheapest");
@@ -821,14 +836,14 @@ export default function InboundPartsView() {
 
   // Data (stable — getLocalParts is pure mock)
   const { jobSite, suppliers, listingsByPart } = useMemo(
-    () => getLocalParts(ANTICIPATED_PARTS, "412 Cedar Court"),
-    [],
+    () => getLocalParts(parts, "412 Cedar Court"),
+    [parts],
   );
 
   // Apply filters + sort to listings per part
   const filteredListings = useMemo(() => {
     const result: Record<string, Listing[]> = {};
-    for (const part of ANTICIPATED_PARTS) {
+    for (const part of parts) {
       const raw = listingsByPart[part.id] ?? [];
       const filtered = applyFilters(raw, suppliers, { distance, availability, supplierFilter });
       result[part.id] = sortListings(filtered, sort, suppliers);
@@ -838,8 +853,8 @@ export default function InboundPartsView() {
 
   // Compute both strategies from filtered listings
   const { cheapest, fewestStops } = useMemo(
-    () => computeStrategies(ANTICIPATED_PARTS, suppliers, filteredListings),
-    [suppliers, filteredListings],
+    () => computeStrategies(parts, suppliers, filteredListings),
+    [parts, suppliers, filteredListings],
   );
 
   const activeStrategyData = activeStrategy === "cheapest" ? cheapest : fewestStops;
@@ -954,7 +969,7 @@ export default function InboundPartsView() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
         {/* Left column: part cards + summary strip */}
         <div className="flex flex-col gap-3">
-          {ANTICIPATED_PARTS.map((part) => (
+          {parts.map((part) => (
             <PartCard
               key={part.id}
               part={part}
