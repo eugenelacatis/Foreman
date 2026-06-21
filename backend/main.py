@@ -16,6 +16,7 @@ from backend.state.redis_client import close_redis, init_redis, _client
 sentry_sdk.init(
     dsn=os.getenv("SENTRY_DSN"),
     integrations=[StarletteIntegration(), FastApiIntegration()],
+    auto_enabling_integrations=False,
     traces_sample_rate=0.0,
     environment=os.getenv("ENV", "development"),
 )
