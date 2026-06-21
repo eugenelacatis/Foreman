@@ -27,7 +27,18 @@ export default function App() {
       const wo = await createWorkOrder(rawRequest);
       setWorkOrderId(wo.id);
     } catch {
-      setWorkOrderId(null); // mock fallback if backend unreachable
+      setWorkOrderId(null);
+    }
+    setView("invoice-flow");
+  };
+
+  const startFlowWithText = async (text: string) => {
+    setFileName("manual entry");
+    try {
+      const wo = await createWorkOrder(text);
+      setWorkOrderId(wo.id);
+    } catch {
+      setWorkOrderId(null);
     }
     setView("invoice-flow");
   };
@@ -46,16 +57,36 @@ export default function App() {
         <div className="mx-auto w-full max-w-[1100px] px-5 sm:px-8 lg:px-12 py-8 lg:py-10">
           {view === "dashboard" ? (
             <>
-              <h1 className="font-display mb-7 text-[24px] font-semibold tracking-tight text-[var(--color-ink)]">
+              {/* Page label — quiet, not competing with content below */}
+              <p className="mb-6 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
                 Dashboard
-              </h1>
+              </p>
 
-              <div className="flex flex-col gap-7">
-                <DropZone onFile={startFlowWithFile} />
-                <SearchBar />
+              <div className="flex flex-col gap-8">
+                {/* Primary focal point — things that need action right now */}
                 <NeedsYou />
+
+                {/* Divider */}
+                <div className="h-px bg-[var(--color-hairline)]" />
+
+                {/* New intake — secondary, below the queue */}
+                <section>
+                  <p className="mb-3 text-[11.5px] font-semibold uppercase tracking-widest text-[var(--color-ink-3)]">
+                    New work order
+                  </p>
+                  <DropZone onFile={startFlowWithFile} onText={startFlowWithText} />
+                </section>
+
+                {/* Work order history with its own filter */}
+                <section>
+                  <SearchBar />
+                  <div className="mt-4">
+                    <WorkOrders onViewOrder={() => setView("invoice-flow")} />
+                  </div>
+                </section>
+
+                {/* Clients — reference, not primary action */}
                 <Clients />
-                <WorkOrders onViewOrder={() => setView("invoice-flow")} />
               </div>
             </>
           ) : (
