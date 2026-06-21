@@ -29,6 +29,19 @@ client = anthropic.AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 MODEL = "claude-sonnet-4-6"
 
+
+def _get_trace_id() -> str | None:
+    try:
+        from opentelemetry import trace
+
+        ctx = trace.get_current_span().get_span_context()
+        if ctx and ctx.trace_id:
+            return format(ctx.trace_id, "032x")
+    except Exception:
+        pass
+    return None
+
+
 TOOLS: list[anthropic.types.ToolParam] = [
     {
         "name": "classify_job",
@@ -80,6 +93,7 @@ async def run_intake(work_order: dict) -> dict:
             tools=TOOLS,
             messages=[{"role": "user", "content": raw_request}],
         )
+        trace_id = _get_trace_id()
     except Exception:
         return _STUB_CLASSIFICATION.copy()
 
@@ -90,6 +104,7 @@ async def run_intake(work_order: dict) -> dict:
                 "job_type": tool_input.get("job_type", "UNKNOWN"),
                 "entities": tool_input.get("entities", {}),
                 "completeness_flags": tool_input.get("completeness_flags", []),
+                "trace_id": trace_id,
             }
 
     return _STUB_CLASSIFICATION.copy()

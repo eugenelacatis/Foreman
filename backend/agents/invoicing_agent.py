@@ -14,6 +14,17 @@ from ..seeds.invoice_history import INVOICE_HISTORY
 logger = logging.getLogger(__name__)
 _tracer = _otel_trace.get_tracer(__name__)
 
+
+def _get_trace_id() -> str | None:
+    try:
+        ctx = _otel_trace.get_current_span().get_span_context()
+        if ctx and ctx.trace_id:
+            return format(ctx.trace_id, "032x")
+    except Exception:
+        pass
+    return None
+
+
 try:
     from openinference.instrumentation.anthropic import AnthropicInstrumentor
     from phoenix.otel import register
@@ -418,6 +429,7 @@ async def run_invoicing(
         "invoice": invoice_state,
         "conversation_history": messages,
         "status": "PENDING_USER_INPUT" if still_missing else "COMPLETE",
+        "trace_id": _get_trace_id(),
     }
     if question_for_user:
         result["question_for_user"] = question_for_user
