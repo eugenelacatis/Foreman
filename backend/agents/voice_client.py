@@ -36,10 +36,12 @@ _DG_KEY = os.getenv("DEEPGRAM_API_KEY")
 # Live STT websocket. We let Deepgram auto-detect the container (browser
 # MediaRecorder emits webm/opus), so we only set model + formatting params.
 _LISTEN_PARAMS = {
-    "model": os.getenv("DEEPGRAM_STT_MODEL", "nova-3"),
+    "model": os.getenv("DEEPGRAM_STT_MODEL", "nova-2"),
     "smart_format": "true",
     "interim_results": "false",
     "punctuate": "true",
+    "encoding": "opus",
+    "container": "webm",
 }
 _LISTEN_URL = "wss://api.deepgram.com/v1/listen?" + urlencode(_LISTEN_PARAMS)
 
@@ -129,7 +131,7 @@ class LiveTranscriber:
             )
             self._recv_task = asyncio.create_task(self._receive_loop())
         except Exception as err:
-            logger.warning("Deepgram live connect failed (%s) — degraded mode", err)
+            logger.error("Deepgram live connect failed (%s) — degraded mode", err, exc_info=True)
             self._degraded = True
             self._ws = None
         return self
