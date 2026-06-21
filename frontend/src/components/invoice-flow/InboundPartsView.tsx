@@ -8,6 +8,9 @@ import {
   Package,
   Truck,
 } from "lucide-react";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 
 /* ============================================================
    Types
@@ -43,13 +46,15 @@ interface Supplier {
   distanceMi: number;
   svgX: number;
   svgY: number;
+  lat: number;
+  lng: number;
   openNow: boolean;
   isMyAccount: boolean;
   isPreferred: boolean;
 }
 
 interface LocalPartsData {
-  jobSite: { svgX: number; svgY: number };
+  jobSite: { svgX: number; svgY: number; lat: number; lng: number };
   suppliers: Supplier[];
   listingsByPart: Record<string, Listing[]>;
 }
@@ -100,27 +105,31 @@ const ANTICIPATED_PARTS: PartNeed[] = [
    POST /api/parts/local { parts, location } → LocalPartsData
    ============================================================ */
 const MOCK_LOCAL_PARTS: LocalPartsData = {
-  jobSite: { svgX: 220, svgY: 130 },
+  jobSite: { svgX: 220, svgY: 130, lat: 40.7128, lng: -74.0060 },
   suppliers: [
     {
       id: "s1", name: "ARS Supply Co.", shortName: "ARS",
       address: "88 Industrial Dr", distanceMi: 0.8,
-      svgX: 90, svgY: 66, openNow: true, isMyAccount: true, isPreferred: true,
+      svgX: 90, svgY: 66, lat: 40.7190, lng: -74.0160,
+      openNow: true, isMyAccount: true, isPreferred: true,
     },
     {
       id: "s2", name: "Johnstone Supply", shortName: "Johnstone",
       address: "210 Commerce Blvd", distanceMi: 1.4,
-      svgX: 346, svgY: 72, openNow: true, isMyAccount: true, isPreferred: false,
+      svgX: 346, svgY: 72, lat: 40.7100, lng: -73.9960,
+      openNow: true, isMyAccount: true, isPreferred: false,
     },
     {
       id: "s3", name: "HVAC City", shortName: "HVAC City",
       address: "5 Depot St", distanceMi: 2.1,
-      svgX: 314, svgY: 198, openNow: true, isMyAccount: false, isPreferred: false,
+      svgX: 314, svgY: 198, lat: 40.6960, lng: -74.0080,
+      openNow: true, isMyAccount: false, isPreferred: false,
     },
     {
       id: "s4", name: "Arctic Air Parts", shortName: "Arctic Air",
       address: "800 Cold Spring Rd", distanceMi: 3.5,
-      svgX: 66, svgY: 196, openNow: false, isMyAccount: false, isPreferred: true,
+      svgX: 66, svgY: 196, lat: 40.7340, lng: -74.0300,
+      openNow: false, isMyAccount: false, isPreferred: true,
     },
   ],
   listingsByPart: {
@@ -362,13 +371,68 @@ function Dropdown<T extends string | number>({
 }
 
 /* ============================================================
-   SVG Map
-   TODO: replace the SVG placeholder with a real tile layer
-         (e.g. Mapbox GL JS or Leaflet) and keep the pin overlay
-         as a React layer positioned on top.
+   Leaflet map — replaces the SVG placeholder
    ============================================================ */
+
+const _PIN_SVG_RED =
+  `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36">` +
+  `<path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24C24 5.373 18.627 0 12 0z" fill="#dc2626"/>` +
+  `<circle cx="12" cy="12" r="5" fill="white"/></svg>`;
+
+const _PIN_SVG_BLUE =
+  `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="32" viewBox="0 0 22 32">` +
+  `<path d="M11 0C4.925 0 0 4.925 0 11c0 8.25 11 22 11 22s11-13.75 11-22C22 4.925 17.075 0 11 0z" fill="#2563eb"/>` +
+  `<circle cx="11" cy="11" r="4.5" fill="white"/></svg>`;
+
+const _PIN_SVG_BLUE_PLAN =
+  `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="38" viewBox="0 0 26 38">` +
+  `<path d="M13 0C5.82 0 0 5.82 0 13c0 9.75 13 26 13 26s13-16.25 13-26C26 5.82 20.18 0 13 0z" fill="#1d4ed8" stroke="white" stroke-width="1.5"/>` +
+  `<circle cx="13" cy="13" r="5" fill="white"/></svg>`;
+
+const _redIcon = L.divIcon({
+  className: "",
+  html: _PIN_SVG_RED,
+  iconSize: [24, 36],
+  iconAnchor: [12, 36],
+  popupAnchor: [0, -38],
+});
+
+const _blueIcon = L.divIcon({
+  className: "",
+  html: _PIN_SVG_BLUE,
+  iconSize: [22, 32],
+  iconAnchor: [11, 32],
+  popupAnchor: [0, -34],
+});
+
+const _bluePlanIcon = L.divIcon({
+  className: "",
+  html: _PIN_SVG_BLUE_PLAN,
+  iconSize: [26, 38],
+  iconAnchor: [13, 38],
+  popupAnchor: [0, -40],
+});
+
+function MapFlyController({
+  centerOn,
+  lat,
+  lng,
+}: {
+  centerOn: CenterOn;
+  lat: number;
+  lng: number;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    const target: [number, number] =
+      centerOn === "jobsite" ? [lat, lng] : [lat + 0.004, lng + 0.006];
+    map.flyTo(target, 14, { duration: 0.8 });
+  }, [centerOn, lat, lng, map]);
+  return null;
+}
+
 interface MapCanvasProps {
-  jobSite: { svgX: number; svgY: number };
+  jobSite: { svgX: number; svgY: number; lat: number; lng: number };
   suppliers: Supplier[];
   hoveredIds: Set<string>;
   planIds: Set<string>;
@@ -387,115 +451,46 @@ function MapCanvas({
   onSelect,
 }: MapCanvasProps) {
   return (
-    <div className="overflow-hidden rounded-[10px] border border-[var(--color-hairline)] bg-[#eef1f5]">
-      {/* TODO: mount tile layer here */}
-      <svg viewBox="0 0 440 260" className="w-full" style={{ display: "block" }}>
-        <rect width="440" height="260" fill="#eef1f5" />
+    <div
+      className="overflow-hidden rounded-[10px] border border-[var(--color-hairline)]"
+      style={{ height: 260 }}
+    >
+      <MapContainer
+        center={[jobSite.lat, jobSite.lng]}
+        zoom={14}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={false}
+        zoomControl
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapFlyController centerOn={centerOn} lat={jobSite.lat} lng={jobSite.lng} />
 
-        {/* Road grid */}
-        <rect x="0" y="122" width="440" height="16" fill="#d8dce4" />
-        <rect x="204" y="0" width="16" height="260" fill="#d8dce4" />
-        <rect x="40" y="60" width="370" height="10" fill="#e1e5eb" />
-        <rect x="30" y="188" width="380" height="10" fill="#e1e5eb" />
-        <line x1="0" y1="130" x2="440" y2="130" stroke="#c4c9d4" strokeWidth="1" strokeDasharray="10 8" />
-        <line x1="212" y1="0" x2="212" y2="260" stroke="#c4c9d4" strokeWidth="1" strokeDasharray="10 8" />
+        {/* Job site — red marker */}
+        <Marker position={[jobSite.lat, jobSite.lng]} icon={_redIcon}>
+          <Popup>Job site</Popup>
+        </Marker>
 
-        {/* City blocks */}
-        <rect x="36" y="70" width="162" height="46" fill="#e5e9ef" rx="3" />
-        <rect x="224" y="70" width="206" height="46" fill="#e5e9ef" rx="3" />
-        <rect x="36" y="140" width="162" height="42" fill="#e5e9ef" rx="3" />
-        <rect x="224" y="140" width="206" height="42" fill="#e5e9ef" rx="3" />
-
-        {/* Job-site pulse ring (active when centering on job site) */}
-        {centerOn === "jobsite" && (
-          <circle
-            cx={jobSite.svgX}
-            cy={jobSite.svgY}
-            r="20"
-            fill="none"
-            stroke="#2563eb"
-            strokeWidth="2"
-            opacity="0.2"
-          />
-        )}
-
-        {/* Supplier pins */}
+        {/* Suppliers — blue markers; darker/larger when in active plan or selected */}
         {suppliers.map((s) => {
           const isSelected = s.id === selectedId;
           const isHovered = hoveredIds.has(s.id);
           const isInPlan = planIds.has(s.id);
-          const pillW = s.shortName.length * 7.4 + 28;
-          const pillH = s.openNow ? 24 : 32;
-          const stroke = isSelected || isHovered
-            ? "#2563eb"
-            : isInPlan
-              ? "#93b4fd"
-              : "#d5d9e2";
+          const icon = isSelected || isHovered || isInPlan ? _bluePlanIcon : _blueIcon;
           return (
-            <g
-              key={s.id}
-              transform={`translate(${s.svgX},${s.svgY})`}
-              onClick={() => onSelect(s.id)}
-              style={{ cursor: "pointer" }}
+            <Marker
+              key={`${s.id}-${String(isSelected)}-${String(isInPlan)}-${String(isHovered)}`}
+              position={[s.lat, s.lng]}
+              icon={icon}
+              eventHandlers={{ click: () => onSelect(s.id) }}
             >
-              <rect
-                x={-pillW / 2}
-                y={-pillH / 2}
-                width={pillW}
-                height={pillH}
-                rx="12"
-                fill="white"
-                stroke={stroke}
-                strokeWidth={isSelected || isHovered ? 2 : 1.5}
-              />
-              <circle
-                cx={-pillW / 2 + 11}
-                cy={s.openNow ? 0 : -5}
-                r={3.5}
-                fill={isInPlan ? "#2563eb" : "#94a3b8"}
-              />
-              <text
-                x={-pillW / 2 + 20}
-                y={s.openNow ? 4.5 : -0.5}
-                fontSize="10.5"
-                fontFamily="system-ui,sans-serif"
-                fontWeight={isInPlan ? "600" : "400"}
-                fill={isInPlan ? "#16191f" : "#475569"}
-              >
-                {s.shortName}
-              </text>
-              {!s.openNow && (
-                <text
-                  x={-pillW / 2 + 20}
-                  y="12"
-                  fontSize="9"
-                  fontFamily="system-ui,sans-serif"
-                  fill="#94a3b8"
-                >
-                  closed
-                </text>
-              )}
-            </g>
+              <Popup>{s.name}</Popup>
+            </Marker>
           );
         })}
-
-        {/* Job-site pin */}
-        <g transform={`translate(${jobSite.svgX},${jobSite.svgY})`}>
-          <circle r="11" fill="#2563eb" opacity="0.15" />
-          <circle r="8" fill="#2563eb" />
-          <circle r="3.5" fill="white" />
-          <text
-            x="13"
-            y="4"
-            fontSize="10"
-            fontFamily="system-ui,sans-serif"
-            fontWeight="600"
-            fill="#16191f"
-          >
-            Job site
-          </text>
-        </g>
-      </svg>
+      </MapContainer>
     </div>
   );
 }

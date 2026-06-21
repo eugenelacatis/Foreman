@@ -78,9 +78,13 @@ async def approve_work_order(
         wo.approvals.intake_approved = True
         wo.status = WorkOrderStatus.scheduling
     elif stage == "scheduling":
+        if not wo.approvals.intake_approved:
+            raise HTTPException(status_code=422, detail="Intake must be approved before approving scheduling.")
         wo.approvals.scheduling_approved = True
         wo.status = WorkOrderStatus.invoicing
     elif stage == "invoice":
+        if not wo.approvals.intake_approved or not wo.approvals.scheduling_approved:
+            raise HTTPException(status_code=422, detail="Scheduling must be approved before approving invoice.")
         wo.approvals.invoice_approved = True
         wo.status = WorkOrderStatus.complete
 
@@ -228,6 +232,11 @@ async def voice_intake(ws: WebSocket) -> None:
                     gap_span.set_attribute("voice.complete", question is None)
                     if question is not None:
                         gap_span.set_attribute("voice.chosen_question", question)
+
+                logger.info(
+                    "voice turn: flags=%r  question=%r  complete=%s",
+                    flags, question, question is None,
+                )
 
                 if question is None:
                     turn_span.set_attribute("voice.complete", True)

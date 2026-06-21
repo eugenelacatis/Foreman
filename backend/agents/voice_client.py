@@ -31,7 +31,8 @@ tracer = trace.get_tracer("foreman.voice")
 # Load backend/.env explicitly so the key resolves no matter the working dir.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
-_DG_KEY = os.getenv("DEEPGRAM_API_KEY")
+def _get_dg_key() -> str | None:
+    return os.getenv("DEEPGRAM_API_KEY")
 
 # Live STT websocket. We let Deepgram auto-detect the container (browser
 # MediaRecorder emits webm/opus), so we only set model + formatting params.
@@ -59,7 +60,7 @@ SEEDED_TRANSCRIPT = (
 
 
 def is_configured() -> bool:
-    return bool(_DG_KEY)
+    return bool(_get_dg_key())
 
 
 async def synthesize(text: str) -> bytes | None:
@@ -69,7 +70,7 @@ async def synthesize(text: str) -> bytes | None:
         span.set_attribute("input.value", text)
         span.set_attribute("voice.tts.model", _SPEAK_MODEL)
         span.set_attribute("voice.tts.text", text)
-        if not _DG_KEY:
+        if not _get_dg_key():
             logger.warning("DEEPGRAM_API_KEY unset — skipping TTS, falling back to text")
             span.set_attribute("voice.degraded", True)
             span.set_attribute("output.value", "[degraded] text-only, no audio")
@@ -79,7 +80,7 @@ async def synthesize(text: str) -> bytes | None:
                 resp = await http.post(
                     _SPEAK_URL,
                     headers={
-                        "Authorization": f"Token {_DG_KEY}",
+                        "Authorization": f"Token {_get_dg_key()}",
                         "Content-Type": "application/json",
                     },
                     json={"text": text},
@@ -115,7 +116,7 @@ class LiveTranscriber:
         self._ws = None
         self._recv_task = None
         self._finals: list[str] = []
-        self._degraded = not _DG_KEY
+        self._degraded = not _get_dg_key()
 
     async def __aenter__(self) -> "LiveTranscriber":
         if self._degraded:
@@ -127,7 +128,7 @@ class LiveTranscriber:
 
             self._ws = await connect(
                 _LISTEN_URL,
-                additional_headers={"Authorization": f"Token {_DG_KEY}"},
+                additional_headers={"Authorization": f"Token {_get_dg_key()}"},
             )
             self._recv_task = asyncio.create_task(self._receive_loop())
         except Exception as err:

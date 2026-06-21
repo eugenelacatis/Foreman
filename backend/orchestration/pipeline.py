@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
-
 from backend.agents.intake_agent import run_intake as _intake
 from backend.agents.invoicing_agent import run_invoicing as _invoicing
 from backend.agents.scheduling_agent import run_scheduling as _scheduling
@@ -49,30 +47,13 @@ async def advance_pipeline(work_order_id: str) -> WorkOrder | None:
     if wo is None:
         return None
 
-    if wo.classification is None:
-        if not wo.approvals.intake_approved:
-            raise HTTPException(
-                422, "Intake must be approved before advancing to scheduling."
-            )
-        wo = await run_intake(wo)
-        await save_work_order(wo)
-        return wo
-
-    if wo.schedule is None:
-        if not wo.approvals.scheduling_approved:
-            raise HTTPException(
-                422, "Scheduling must be approved before advancing to invoicing."
-            )
+    # After intake approval status becomes "scheduling" — run scheduling and stop.
+    if wo.status == WorkOrderStatus.scheduling and wo.schedule is None:
         wo = await run_scheduling(wo)
         await save_work_order(wo)
-        return wo
 
-    if not wo.approvals.invoice_approved:
-        return wo
-
-    if wo.invoice is None:
-        wo = await run_invoicing(wo)
-        wo.status = WorkOrderStatus.complete
-        await save_work_order(wo)
+    # After scheduling approval status becomes "invoicing" — invoicing is handled
+    # interactively via /invoice-chat, nothing to auto-run here.
+    # After invoice approval status is already "complete" — nothing to run.
 
     return wo
