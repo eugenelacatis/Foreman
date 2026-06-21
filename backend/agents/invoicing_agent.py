@@ -5,12 +5,14 @@ import uuid
 from datetime import date
 
 import anthropic
+from opentelemetry import trace as _otel_trace
 
 from .armoriq_client import ArmorIQBlockedError, check_action, sign_plan
 from .invoice_template import render_template
 from ..seeds.invoice_history import INVOICE_HISTORY
 
 logger = logging.getLogger(__name__)
+_tracer = _otel_trace.get_tracer(__name__)
 
 try:
     from openinference.instrumentation.anthropic import AnthropicInstrumentor
@@ -236,8 +238,11 @@ async def _dispatch_tool(
     invoice_state: dict,
 ) -> str:
     if tool_name in _ARMORIQ_GUARDED:
-        plan_id = await sign_plan(action=tool_name, plan=tool_input)
-        result = await check_action(action=tool_name, plan_id=plan_id)
+        with _tracer.start_as_current_span("invoicing.armoriq_check") as span:
+            span.set_attribute("action", tool_name)
+            plan_id = await sign_plan(action=tool_name, plan=tool_input)
+            result = await check_action(action=tool_name, plan_id=plan_id)
+            span.set_attribute("allowed", result["allowed"])
         if not result["allowed"]:
             raise ArmorIQBlockedError(
                 f"ArmorIQ blocked action: {tool_name} — {result['reason']}"
@@ -256,9 +261,12 @@ async def _dispatch_tool(
         return json.dumps(result)
 
     if tool_name == "check_consistency":
-        result = _tool_check_consistency(
-            tool_input["invoice_draft"], tool_input["history_results"]
-        )
+        with _tracer.start_as_current_span("invoicing.consistency_check") as span:
+            result = _tool_check_consistency(
+                tool_input["invoice_draft"], tool_input["history_results"]
+            )
+            span.set_attribute("flags_count", len(result["consistency_flags"]))
+            span.set_attribute("history_count", result["history_count"])
         invoice_state["consistency_flags"] = result["consistency_flags"]
         return json.dumps(result)
 
@@ -327,23 +335,28 @@ async def run_invoicing(
         messages = [{"role": "user", "content": "\n\n".join(context_parts)}]
 
     question_for_user: str | None = None
+    turn_number = 0
 
     while True:
-        try:
-            response = await client.messages.create(
-                model=MODEL,
-                max_tokens=2048,
-                system=SYSTEM_PROMPT,
-                tools=TOOLS,
-                messages=messages,
-            )
-        except Exception as exc:
-            logger.error("Claude call failed: %s", exc)
-            return {
-                "error": str(exc),
-                "invoice": invoice_state,
-                "status": "ERROR",
-            }
+        turn_number += 1
+        with _tracer.start_as_current_span("invoicing.gap_fill_turn") as span:
+            span.set_attribute("turn_number", turn_number)
+            try:
+                response = await client.messages.create(
+                    model=MODEL,
+                    max_tokens=2048,
+                    system=SYSTEM_PROMPT,
+                    tools=TOOLS,
+                    messages=messages,
+                )
+            except Exception as exc:
+                logger.error("Claude call failed: %s", exc)
+                return {
+                    "error": str(exc),
+                    "invoice": invoice_state,
+                    "status": "ERROR",
+                }
+            span.set_attribute("stop_reason", response.stop_reason or "")
 
         messages.append({"role": "assistant", "content": response.content})
 

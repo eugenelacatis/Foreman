@@ -14,7 +14,7 @@ The invoicing stage is a multi-turn conversation. The agent prefills what it can
 
 ## Quick start
 
-You need Python 3.11, Redis, and an Anthropic API key.
+You need Python 3.11, Redis Stack (not plain Redis), and an Anthropic API key. Redis Stack includes the vector search module required for invoice history. Install it with `brew tap redis-stack/redis-stack && brew trust redis-stack/redis-stack && brew install redis-stack`, then start it with `redis-stack-server --port 6380 --daemonize yes`.
 
 ```bash
 cp backend/.env.example backend/.env
