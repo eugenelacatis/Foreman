@@ -23,16 +23,31 @@ _FLAG_QUESTIONS: dict[str, str] = {
 }
 
 _GENERIC_QUESTION = "Could you give me a bit more detail so I can complete the request?"
+_FALLBACK_QUESTION = "Could you describe the job — what needs fixing, where, and how urgent is it?"
 
 
 def question_for_flags(flags: list[str]) -> str | None:
     """Return a spoken question for the first actionable flag, or None if complete.
 
-    The pure-fallback flag 'FALLBACK' is ignored — it signals an internal error,
-    not a real missing field, so we don't quiz the caller about it.
+    'FALLBACK' means intake failed to parse anything useful — ask an open-ended
+    question to recover, rather than treating it as complete.
     """
     for flag in flags:
         if flag == "FALLBACK":
-            continue
+            return _FALLBACK_QUESTION
         return _FLAG_QUESTIONS.get(flag.upper(), _GENERIC_QUESTION)
     return None
+
+
+if __name__ == "__main__":
+    _SPOT_CHECKS: list[list[str]] = [
+        [],
+        ["FALLBACK"],
+        ["MISSING_LOCATION"],
+        ["MISSING_CONTACT", "MISSING_LOCATION"],
+        ["UNCLEAR_URGENCY", "MISSING_ASSET"],
+        ["MISSING_JOB_TYPE"],
+        ["UNKNOWN_FLAG"],
+    ]
+    for _combo in _SPOT_CHECKS:
+        print(f"flags={_combo!r:60s} -> {question_for_flags(_combo)!r}")
