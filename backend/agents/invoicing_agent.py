@@ -237,9 +237,11 @@ async def _dispatch_tool(
 ) -> str:
     if tool_name in _ARMORIQ_GUARDED:
         plan_id = await sign_plan(action=tool_name, plan=tool_input)
-        allowed = await check_action(action=tool_name, plan_id=plan_id)
-        if not allowed:
-            raise ArmorIQBlockedError(f"ArmorIQ blocked action: {tool_name}")
+        result = await check_action(action=tool_name, plan_id=plan_id)
+        if not result["allowed"]:
+            raise ArmorIQBlockedError(
+                f"ArmorIQ blocked action: {tool_name} — {result['reason']}"
+            )
 
     if tool_name == "prefill_invoice":
         result = _tool_prefill_invoice(
