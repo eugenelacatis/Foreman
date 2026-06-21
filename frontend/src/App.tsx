@@ -13,8 +13,10 @@ type View = "dashboard" | "invoice-flow";
 export default function App() {
   const [view, setView] = useState<View>("dashboard");
   const [workOrderId, setWorkOrderId] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
 
   const startFlowWithFile = async (file: File) => {
+    setFileName(file.name);
     let rawRequest: string;
     if (file.name.endsWith(".txt") || file.name.endsWith(".eml")) {
       rawRequest = await file.text().catch(() => file.name);
@@ -33,6 +35,7 @@ export default function App() {
   const backToDashboard = () => {
     setView("dashboard");
     setWorkOrderId(null);
+    setFileName(null);
   };
 
   return (
@@ -56,7 +59,7 @@ export default function App() {
               </div>
             </>
           ) : (
-            <WorkOrderToInvoiceFlow onBack={backToDashboard} workOrderId={workOrderId} />
+            <WorkOrderToInvoiceFlow onBack={backToDashboard} workOrderId={workOrderId} fileName={fileName} />
           )}
         </div>
       </main>
