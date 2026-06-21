@@ -4,9 +4,10 @@ import os
 
 import anthropic
 
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +95,8 @@ async def run_intake(work_order: dict) -> dict:
             messages=[{"role": "user", "content": raw_request}],
         )
         trace_id = _get_trace_id()
-    except Exception:
+    except Exception as exc:
+        logger.error("intake API call failed: %s", exc, exc_info=True)
         return _STUB_CLASSIFICATION.copy()
 
     for block in response.content:

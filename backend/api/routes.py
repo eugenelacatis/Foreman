@@ -1,15 +1,27 @@
 from __future__ import annotations
 
+import json
+import logging
 import uuid
+
+from fastapi import APIRouter, Body, HTTPException, WebSocket, WebSocketDisconnect
+from opentelemetry import trace
 
 import sentry_sdk
 from fastapi import APIRouter, Body, HTTPException
 
 from backend.agents.invoicing_agent import run_invoicing as _run_invoicing
+from backend.agents.question_map import question_for_flags
+from backend.agents.voice_client import LiveTranscriber, synthesize
 from backend.models.work_order import Approvals, Invoice, WorkOrder, WorkOrderStatus
+from backend.orchestration.pipeline import run_intake as _run_intake_stage
 from backend.orchestration.pipeline import advance_pipeline
 from backend.state.invoice_history import search_invoice_history
 from backend.state.redis_client import get_work_order, save_work_order
+
+logger = logging.getLogger(__name__)
+
+tracer = trace.get_tracer("foreman.voice")
 
 router = APIRouter()
 
@@ -116,3 +128,113 @@ async def invoice_chat(
         else f"Still need: {', '.join(result.get('missing_fields', []))}"
     )
     return {"reply": reply, "work_order": wo}
+
+
+async def _send_json(ws: WebSocket, payload: dict) -> None:
+    await ws.send_text(json.dumps(payload))
+
+
+@router.websocket("/ws/work-orders/voice")
+async def voice_intake(ws: WebSocket) -> None:
+    """Live-streaming voice intake.
+
+    Protocol (client <-> server):
+      client -> binary frames : audio chunks (e.g. webm/opus from MediaRecorder)
+      client -> {"event": "end_turn"} : caller finished speaking this turn
+      client -> {"event": "done"} : caller hung up / cancel
+
+      server -> {"event": "transcript", "text": ...} : what we heard this turn
+      server -> {"event": "question", "text": ..., "has_audio": bool, "id": ...}
+                followed by a binary TTS frame when has_audio is true
+      server -> {"event": "complete", "work_order": {...}} : intake finished
+
+    The loop transcribes a turn, merges it into raw_request, re-runs intake, and
+    speaks back the first missing-info question until none remain.
+    """
+    await ws.accept()
+
+    wo = WorkOrder(id=str(uuid.uuid4()), raw_request="")
+    await save_work_order(wo)
+
+    try:
+        while True:
+            with tracer.start_as_current_span("voice.turn") as turn_span:
+                turn_span.set_attribute("work_order.id", wo.id)
+
+                # --- collect one turn of audio until the client signals end_turn ---
+                async with LiveTranscriber() as stt:
+                    ended = False
+                    while True:
+                        msg = await ws.receive()
+                        if msg.get("type") == "websocket.disconnect":
+                            return
+                        if msg.get("bytes") is not None:
+                            await stt.send(msg["bytes"])
+                            continue
+                        text = msg.get("text")
+                        if text is None:
+                            continue
+                        try:
+                            event = json.loads(text).get("event")
+                        except (ValueError, TypeError):
+                            continue
+                        if event == "done":
+                            return
+                        if event == "end_turn":
+                            ended = True
+                            break
+                    if not ended:
+                        return
+                    transcript = await stt.finish()
+
+                # --- merge the turn into raw_request and re-run intake ---
+                wo.raw_request = (wo.raw_request + " " + transcript).strip()
+                turn_span.set_attribute("voice.transcript", transcript)
+                await _send_json(ws, {"event": "transcript", "text": transcript})
+
+                wo = await _run_intake_stage(wo)
+                await save_work_order(wo)
+
+                flags = (
+                    wo.classification.completeness_flags if wo.classification else []
+                )
+
+                # --- gap-fill decision: which missing field do we ask about? ---
+                with tracer.start_as_current_span("voice.gap_fill") as gap_span:
+                    gap_span.set_attribute("voice.completeness_flags", flags)
+                    question = question_for_flags(flags)
+                    gap_span.set_attribute("voice.complete", question is None)
+                    if question is not None:
+                        gap_span.set_attribute("voice.chosen_question", question)
+
+                if question is None:
+                    turn_span.set_attribute("voice.complete", True)
+                    await _send_json(
+                        ws,
+                        {"event": "complete", "work_order": wo.model_dump(mode="json")},
+                    )
+                    return
+
+                # --- speak the follow-up question (audio primary, text fallback) ---
+                audio = await synthesize(question)
+                turn_span.set_attribute("voice.has_audio", audio is not None)
+                await _send_json(
+                    ws,
+                    {
+                        "event": "question",
+                        "text": question,
+                        "has_audio": audio is not None,
+                        "id": wo.id,
+                    },
+                )
+                if audio is not None:
+                    await ws.send_bytes(audio)
+                # loop back for the caller's spoken answer
+    except WebSocketDisconnect:
+        return
+    except Exception as err:  # never let a voice glitch crash the socket
+        logger.warning("voice_intake error: %s", err)
+        try:
+            await _send_json(ws, {"event": "error", "text": "Voice session ended."})
+        except Exception:
+            pass
