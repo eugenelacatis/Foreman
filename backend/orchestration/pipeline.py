@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from fastapi import HTTPException
+
 from backend.agents.intake_agent import run_intake as _intake
 from backend.agents.invoicing_agent import run_invoicing as _invoicing
 from backend.agents.scheduling_agent import run_scheduling as _scheduling
@@ -58,18 +60,16 @@ async def advance_pipeline(work_order_id: str) -> WorkOrder | None:
     if wo is None:
         return None
 
-    if not wo.approvals.intake_approved:
-        return wo
-
     if wo.classification is None:
+        if not wo.approvals.intake_approved:
+            raise HTTPException(422, "Intake must be approved before advancing to scheduling.")
         wo = await run_intake(wo)
         await save_work_order(wo)
         return wo
 
-    if not wo.approvals.scheduling_approved:
-        return wo
-
     if wo.schedule is None:
+        if not wo.approvals.scheduling_approved:
+            raise HTTPException(422, "Scheduling must be approved before advancing to invoicing.")
         wo = await run_scheduling(wo)
         await save_work_order(wo)
         return wo
