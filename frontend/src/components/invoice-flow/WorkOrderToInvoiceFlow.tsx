@@ -415,6 +415,18 @@ function Step1Inbound({
   rawRequest,
   pollError = false,
 }: Step1Props) {
+  // Real job address for the live supplier lookup: prefer the extracted
+  // location entity, then a generic address entity, then the raw request.
+  const jobAddress = useMemo(() => {
+    const entities = (wo?.classification?.entities ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const loc = entities.location ?? entities.address;
+    if (typeof loc === "string" && loc.trim()) return loc.trim();
+    return wo?.raw_request?.trim() || undefined;
+  }, [wo?.classification?.entities, wo?.raw_request]);
+
   // Mock animation fallback: runs only when there's no real classification yet
   const [mockDone, setMockDone] = useState(false);
   useEffect(() => {
@@ -516,6 +528,7 @@ function Step1Inbound({
 
       <InboundPartsView
         partsSuggestion={wo?.schedule?.parts_suggestion ?? undefined}
+        jobAddress={jobAddress}
       />
 
       <div className="flex justify-end">

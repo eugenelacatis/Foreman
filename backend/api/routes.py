@@ -14,6 +14,7 @@ from fastapi import APIRouter, Body, HTTPException
 
 from backend.agents.armoriq_client import check_action, sign_plan
 from backend.agents.invoicing_agent import run_invoicing as _run_invoicing
+from backend.agents.parts_client import build_local_parts
 from backend.agents.question_map import question_for_flags
 from backend.agents.voice_client import LiveTranscriber, synthesize
 from backend.models.work_order import Approvals, Invoice, WorkOrder, WorkOrderStatus
@@ -156,6 +157,29 @@ async def armoriq_check(id: str, action: str = Body(..., embed=True)) -> dict:
     plan_id = await sign_plan(action, {"work_order_id": id})
     result = await check_action(action, plan_id)
     return result
+
+
+@router.post("/parts/local")
+async def parts_local(
+    parts: list[dict] = Body(default_factory=list),
+    location: str = Body(""),
+) -> dict:
+    """Live local-supplier lookup for the anticipated-parts panel.
+
+    Body: {"parts": [{"id", "name", "estimated_price_usd"}], "location": "<address>"}
+    Returns the LocalPartsData payload, or {"live": false, "reason": ...} when no
+    real suppliers could be found (e.g. a fictional address). Never fakes stores.
+    """
+    if not location.strip():
+        return {"live": False, "reason": "No job address available."}
+
+    data = await build_local_parts(parts, location)
+    if data is None:
+        return {
+            "live": False,
+            "reason": "No live suppliers found near this job address.",
+        }
+    return data
 
 
 @router.post("/voice-turn")

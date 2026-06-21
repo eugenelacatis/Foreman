@@ -27,13 +27,14 @@ interface PartNeed {
   id: string;
   name: string;
   qty: number;
+  estimatedPrice: number;
 }
 
 interface Listing {
   supplierId: string;
   price: number;
+  priceIsLive?: boolean; // true = live retail price (Browserbase); false = agent estimate
   inStock: boolean;
-  stockQty?: number;
   pickupReady: boolean;
   openNow: boolean;
 }
@@ -44,8 +45,6 @@ interface Supplier {
   shortName: string;
   address: string;
   distanceMi: number;
-  svgX: number;
-  svgY: number;
   lat: number;
   lng: number;
   openNow: boolean;
@@ -57,6 +56,7 @@ interface LocalPartsData {
   jobSite: { svgX: number; svgY: number; lat: number; lng: number };
   suppliers: Supplier[];
   listingsByPart: Record<string, Listing[]>;
+  live?: boolean;
 }
 
 interface OrderLine {
@@ -94,194 +94,42 @@ interface CheckoutState {
    Anticipated parts
    In production: derive from wo.classification.entities (e.g. job_type → part list)
    ============================================================ */
+// Fallback parts list used only before the scheduling agent has produced its
+// own parts_suggestion (e.g. while still on the Inbound step). Prices are
+// rough HVAC estimates, shown as estimates — the agent's numbers override these.
 const ANTICIPATED_PARTS: PartNeed[] = [
-  { id: "cap", name: "Compressor capacitor", qty: 1 },
-  { id: "con", name: "Contactor", qty: 1 },
-  { id: "ref", name: "Refrigerant R-410A", qty: 2 },
+  { id: "cap", name: "Compressor capacitor", qty: 1, estimatedPrice: 28.5 },
+  { id: "con", name: "Contactor", qty: 1, estimatedPrice: 18.5 },
+  { id: "ref", name: "Refrigerant R-410A", qty: 2, estimatedPrice: 22.5 },
 ];
 
 /* ============================================================
-   Mock data — swap getLocalParts body for the real endpoint:
+   Live local-supplier lookup.
    POST /api/parts/local { parts, location } → LocalPartsData
+   Returns null when the backend reports no live data ({ live: false }),
+   e.g. the job address is fictional or not geocodable. We never fall back
+   to fabricated suppliers — the caller renders an honest empty state.
    ============================================================ */
-const MOCK_LOCAL_PARTS: LocalPartsData = {
-  jobSite: { svgX: 220, svgY: 130, lat: 40.7128, lng: -74.006 },
-  suppliers: [
-    {
-      id: "s1",
-      name: "ARS Supply Co.",
-      shortName: "ARS",
-      address: "88 Industrial Dr",
-      distanceMi: 0.8,
-      svgX: 90,
-      svgY: 66,
-      lat: 40.719,
-      lng: -74.016,
-      openNow: true,
-      isMyAccount: true,
-      isPreferred: true,
-    },
-    {
-      id: "s2",
-      name: "Johnstone Supply",
-      shortName: "Johnstone",
-      address: "210 Commerce Blvd",
-      distanceMi: 1.4,
-      svgX: 346,
-      svgY: 72,
-      lat: 40.71,
-      lng: -73.996,
-      openNow: true,
-      isMyAccount: true,
-      isPreferred: false,
-    },
-    {
-      id: "s3",
-      name: "HVAC City",
-      shortName: "HVAC City",
-      address: "5 Depot St",
-      distanceMi: 2.1,
-      svgX: 314,
-      svgY: 198,
-      lat: 40.696,
-      lng: -74.008,
-      openNow: true,
-      isMyAccount: false,
-      isPreferred: false,
-    },
-    {
-      id: "s4",
-      name: "Arctic Air Parts",
-      shortName: "Arctic Air",
-      address: "800 Cold Spring Rd",
-      distanceMi: 3.5,
-      svgX: 66,
-      svgY: 196,
-      lat: 40.734,
-      lng: -74.03,
-      openNow: false,
-      isMyAccount: false,
-      isPreferred: true,
-    },
-  ],
-  listingsByPart: {
-    cap: [
-      {
-        supplierId: "s4",
-        price: 27.0,
-        inStock: true,
-        stockQty: 4,
-        pickupReady: false,
-        openNow: false,
-      },
-      {
-        supplierId: "s1",
-        price: 28.5,
-        inStock: true,
-        stockQty: 6,
-        pickupReady: true,
-        openNow: true,
-      },
-      {
-        supplierId: "s2",
-        price: 31.0,
-        inStock: true,
-        stockQty: 12,
-        pickupReady: true,
-        openNow: true,
-      },
-    ],
-    con: [
-      {
-        supplierId: "s2",
-        price: 18.5,
-        inStock: true,
-        stockQty: 8,
-        pickupReady: true,
-        openNow: true,
-      },
-      {
-        supplierId: "s3",
-        price: 19.75,
-        inStock: true,
-        stockQty: 5,
-        pickupReady: false,
-        openNow: true,
-      },
-      {
-        supplierId: "s1",
-        price: 21.0,
-        inStock: true,
-        stockQty: 3,
-        pickupReady: true,
-        openNow: true,
-      },
-    ],
-    ref: [
-      {
-        supplierId: "s4",
-        price: 21.0,
-        inStock: true,
-        stockQty: 8,
-        pickupReady: false,
-        openNow: false,
-      },
-      {
-        supplierId: "s3",
-        price: 22.5,
-        inStock: true,
-        stockQty: 10,
-        pickupReady: false,
-        openNow: true,
-      },
-      {
-        supplierId: "s2",
-        price: 24.0,
-        inStock: true,
-        stockQty: 20,
-        pickupReady: true,
-        openNow: true,
-      },
-    ],
-  },
-};
-
 async function getLocalParts(
   parts: PartNeed[],
-  _location: string,
-): Promise<LocalPartsData> {
-  await new Promise<void>((r) => setTimeout(r, 700));
-  if (parts === ANTICIPATED_PARTS) return MOCK_LOCAL_PARTS;
-  const listingsByPart: Record<string, Listing[]> = {};
-  parts.forEach((part) => {
-    listingsByPart[part.id] = [
-      {
-        supplierId: "s1",
-        price: 0,
-        inStock: true,
-        stockQty: 6,
-        pickupReady: true,
-        openNow: true,
-      },
-      {
-        supplierId: "s2",
-        price: 0,
-        inStock: true,
-        stockQty: 12,
-        pickupReady: true,
-        openNow: true,
-      },
-      {
-        supplierId: "s3",
-        price: 0,
-        inStock: true,
-        stockQty: 5,
-        pickupReady: false,
-        openNow: true,
-      },
-    ];
+  location: string,
+): Promise<LocalPartsData | null> {
+  const res = await fetch("/api/parts/local", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location,
+      parts: parts.map((p) => ({
+        id: p.id,
+        name: p.name,
+        estimated_price_usd: p.estimatedPrice,
+      })),
+    }),
   });
-  return { ...MOCK_LOCAL_PARTS, listingsByPart };
+  if (!res.ok) throw new Error(`${res.status}`);
+  const data = (await res.json()) as LocalPartsData;
+  if (data?.live === false) return null;
+  return data;
 }
 
 /* ============================================================
@@ -744,14 +592,33 @@ function PartCard({
                     {fmtDist(sup.distanceMi)}
                   </td>
                   <td className="num px-3 py-2.5 text-right text-[13px] font-medium text-[var(--color-ink)]">
-                    {fmtMoney(l.price)}
+                    {l.price > 0 ? (
+                      <span className="inline-flex items-center justify-end gap-1.5">
+                        {fmtMoney(l.price)}
+                        <span
+                          className={
+                            "rounded-full px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide " +
+                            (l.priceIsLive
+                              ? "bg-[var(--color-sent-tint)] text-[var(--color-sent-ink)]"
+                              : "bg-[#f0f1f3] text-[var(--color-ink-3)]")
+                          }
+                          title={
+                            l.priceIsLive
+                              ? "Live retail price via Browserbase"
+                              : "Agent estimate"
+                          }
+                        >
+                          {l.priceIsLive ? "live" : "est"}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-[var(--color-ink-3)]">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-right text-[12px]">
                     {l.inStock ? (
                       <span className="text-[var(--color-sent-ink)]">
-                        {l.stockQty != null
-                          ? `${l.stockQty} avail.`
-                          : "In stock"}
+                        Available
                       </span>
                     ) : (
                       <span className="text-red-400">Out of stock</span>
@@ -992,10 +859,12 @@ function OrderSection({
    ============================================================ */
 interface InboundPartsViewProps {
   partsSuggestion?: Array<Record<string, unknown>>;
+  jobAddress?: string;
 }
 
 export default function InboundPartsView({
   partsSuggestion,
+  jobAddress,
 }: InboundPartsViewProps) {
   const parts: PartNeed[] = useMemo(() => {
     if (partsSuggestion?.length) {
@@ -1003,44 +872,12 @@ export default function InboundPartsView({
         id: `p-${i}`,
         name: String(p.name ?? `Part ${i + 1}`),
         qty: Number(p.qty ?? 1),
+        // Agent's estimate lives on `estimated_price_usd`; `.price` is a legacy alias.
+        estimatedPrice: Number(p.estimated_price_usd ?? p.price ?? 0),
       }));
     }
     return ANTICIPATED_PARTS;
   }, [partsSuggestion]);
-
-  const mockDataForParts: LocalPartsData = useMemo(() => {
-    if (!partsSuggestion?.length) return MOCK_LOCAL_PARTS;
-    const listingsByPart: Record<string, Listing[]> = {};
-    parts.forEach((part, i) => {
-      listingsByPart[part.id] = [
-        {
-          supplierId: "s1",
-          price: Number(partsSuggestion[i]?.price ?? 20) * 0.95,
-          inStock: true,
-          stockQty: 6,
-          pickupReady: true,
-          openNow: true,
-        },
-        {
-          supplierId: "s2",
-          price: Number(partsSuggestion[i]?.price ?? 20),
-          inStock: true,
-          stockQty: 12,
-          pickupReady: true,
-          openNow: true,
-        },
-        {
-          supplierId: "s3",
-          price: Number(partsSuggestion[i]?.price ?? 20) * 1.08,
-          inStock: true,
-          stockQty: 5,
-          pickupReady: false,
-          openNow: true,
-        },
-      ];
-    });
-    return { ...MOCK_LOCAL_PARTS, listingsByPart };
-  }, [parts, partsSuggestion]);
 
   // Filter state
   const [distance, setDistance] = useState<DistanceOpt>(25);
@@ -1062,32 +899,48 @@ export default function InboundPartsView({
     Record<string, CheckoutState>
   >({});
 
-  // Async data — getLocalParts will become a real API call
+  // Live supplier data from POST /api/parts/local.
   const [localParts, setLocalParts] = useState<LocalPartsData | null>(null);
   const [partsLoading, setPartsLoading] = useState(true);
-  const [partsError, setPartsError] = useState(false);
+  const [partsError, setPartsError] = useState(false); // network/API failure
+  const [noLiveData, setNoLiveData] = useState(false); // address not geocodable / no suppliers
 
   const loadParts = useCallback(async () => {
     setPartsLoading(true);
     setPartsError(false);
+    setNoLiveData(false);
     try {
-      const data = partsSuggestion?.length
-        ? mockDataForParts
-        : await getLocalParts(parts, "412 Cedar Court");
-      setLocalParts(data);
+      const data = await getLocalParts(parts, jobAddress ?? "");
+      if (data === null) {
+        setNoLiveData(true);
+        setLocalParts(null);
+      } else {
+        setLocalParts(data);
+      }
     } catch {
+      // A failed external call must never break the UI — show the error state,
+      // never silent fake suppliers.
       setPartsError(true);
-      setLocalParts(mockDataForParts);
+      setLocalParts(null);
     } finally {
       setPartsLoading(false);
     }
-  }, [parts, mockDataForParts, partsSuggestion]);
+  }, [parts, jobAddress]);
 
   useEffect(() => {
     void loadParts();
   }, [loadParts]);
 
-  const { jobSite, suppliers, listingsByPart } = localParts ?? mockDataForParts;
+  // Safe empty defaults so the hooks below run unconditionally; real rendering
+  // is gated on `localParts` being present.
+  const jobSite = localParts?.jobSite ?? {
+    lat: 0,
+    lng: 0,
+    svgX: 220,
+    svgY: 130,
+  };
+  const suppliers = localParts?.suppliers ?? [];
+  const listingsByPart = localParts?.listingsByPart ?? {};
 
   // Apply filters + sort to listings per part
   const filteredListings = useMemo(() => {
@@ -1223,19 +1076,15 @@ export default function InboundPartsView({
         />
       </div>
 
-      {partsError && (
-        <div className="flex items-center justify-between gap-3 rounded-[8px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-2.5">
-          <span className="text-[12.5px] text-[var(--color-ink-2)]">
-            Couldn't reach parts API — showing demo prices.
-          </span>
-          <button
-            type="button"
-            onClick={() => void loadParts()}
-            className="shrink-0 text-[12px] font-medium text-[var(--color-accent)] hover:underline"
-          >
-            Retry
-          </button>
-        </div>
+      {/* Prices are the agent's estimate, shown the same at every store. Stock and
+          live per-store pricing need a supplier account and are not shown. */}
+      {localParts && (
+        <p className="text-[11.5px] text-[var(--color-ink-3)]">
+          Suppliers and distances are live from OpenStreetMap. Prices marked{" "}
+          <span className="font-medium text-[var(--color-sent-ink)]">live</span>{" "}
+          are real retail prices via Browserbase; <span className="font-medium">est</span>{" "}
+          is the agent's estimate, shown the same at every store.
+        </p>
       )}
 
       {partsLoading ? (
@@ -1248,6 +1097,47 @@ export default function InboundPartsView({
           </div>
           <div className="h-16 rounded-[10px] bg-[#f0f1f3]" />
           <div className="h-28 rounded-[10px] bg-[#f0f1f3]" />
+        </div>
+      ) : partsError ? (
+        <div className="flex flex-col items-center gap-3 rounded-[10px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-10 text-center">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-[var(--color-ink-3)]">
+            <MapPin size={18} strokeWidth={2} />
+          </span>
+          <div className="text-[13.5px] font-medium text-[var(--color-ink)]">
+            Couldn't reach the supplier lookup
+          </div>
+          <div className="max-w-sm text-[12.5px] leading-snug text-[var(--color-ink-3)]">
+            The local supplier service didn't respond. No suppliers are shown
+            rather than guessing.
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadParts()}
+            className="mt-1 inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1]"
+          >
+            Retry
+          </button>
+        </div>
+      ) : !localParts || noLiveData ? (
+        <div className="flex flex-col items-center gap-3 rounded-[10px] border border-[var(--color-hairline)] bg-[#fafbfd] px-4 py-10 text-center">
+          <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-[var(--color-ink-3)]">
+            <MapPin size={18} strokeWidth={2} />
+          </span>
+          <div className="text-[13.5px] font-medium text-[var(--color-ink)]">
+            No live suppliers found near this job
+          </div>
+          <div className="max-w-sm text-[12.5px] leading-snug text-[var(--color-ink-3)]">
+            {jobAddress
+              ? "We couldn't find trade or hardware suppliers near this address. It may be a placeholder address."
+              : "This work order has no geocodable address yet, so we can't look up nearby suppliers."}
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadParts()}
+            className="mt-1 inline-flex items-center gap-1.5 rounded-[8px] bg-[var(--color-accent)] px-3.5 h-9 text-[13px] font-medium text-white transition-colors hover:bg-[#1d4fd1]"
+          >
+            Retry
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
